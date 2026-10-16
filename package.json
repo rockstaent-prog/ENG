@@ -12,7 +12,8 @@
     "test": "node --test tests/*.test.js",
     "test:e2e": "node tests/browser.cjs",
     "test:preview": "node tests/static-preview.cjs",
-    "test:standalone": "node tests/standalone.cjs"
+    "test:standalone": "node tests/standalone.cjs",
+    "test:mobile": "node tests/mobile.cjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

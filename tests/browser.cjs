@@ -50,6 +50,9 @@ const path = require('node:path');
     console.log('PASS: lesson completion, wrong-answer feedback, unlocking, XP persistence and mistake review');
 
     await page.getByRole('navigation',{name:'メインメニュー',exact:true}).getByRole('button',{name:'会話する'}).click();
+    await page.getByRole('button',{name:'アバター設定',exact:true}).click();
+    await page.getByLabel('返事を自動で読み上げる').uncheck();
+    await page.getByRole('button',{name:'アバター設定を閉じる'}).click();
     await page.getByRole('button',{name:"I'd like a coffee, please."}).click();
     await page.getByText('One coffee, coming right up! Would you like it hot or iced?',{exact:true}).waitFor();
     await page.getByLabel('英語のメッセージ').fill('Hot, please.');
@@ -131,16 +134,26 @@ const path = require('node:path');
     const voicePage = await browser.newPage({viewport:{width:390,height:844}});
     voicePage.on('pageerror',error=>errors.push(error.message));
     await voicePage.addInitScript(()=>{
-      Object.defineProperty(window,'speechSynthesis',{configurable:true,value:{
-        getVoices:()=>[],addEventListener(){},removeEventListener(){},
+      window.testVoiceList=[{voiceURI:'test-male',name:'Microsoft David',lang:'en-US',default:true},{voiceURI:'test-female',name:'Microsoft Aria Online (Natural)',lang:'en-US'}];
+      window.playedUtterances=[];
+      localStorage.setItem('komorebi-avatar',JSON.stringify({kind:'portrait',name:'Emma',image:'',autoRead:true,voiceURI:'test-male'}));
+      Object.defineProperty(window,'SpeechSynthesisUtterance',{configurable:true,value:class {constructor(text){this.text=text;}}});
+      const synth=Object.assign(new EventTarget(),{
+        getVoices:()=>window.testVoiceList,
         cancel(){window.activeTestUtterance=null;},
-        speak(utterance){window.activeTestUtterance=utterance;if(!window.holdSpeech)utterance.onstart?.(new Event('start'));},
-      }});
+        speak(utterance){window.playedUtterances.push(utterance);window.activeTestUtterance=utterance;if(!window.holdSpeech)utterance.onstart?.(new Event('start'));},
+      });
+      Object.defineProperty(window,'speechSynthesis',{configurable:true,value:synth});
     });
     await voicePage.goto('http://127.0.0.1:4174');
     await voicePage.getByRole('navigation',{name:'モバイルメニュー'}).getByRole('button',{name:'会話する',exact:true}).click();
     assert.ok(await voicePage.locator('.stage-character img').evaluate(img=>img.complete && img.naturalWidth>0));
     await voicePage.locator('.portrait-canvas[data-ready="true"]').waitFor();
+    await voicePage.getByRole('button',{name:'アバター設定',exact:true}).click();
+    const voiceOptions=await voicePage.getByLabel('話す声（女性）').locator('option').allTextContents();
+    assert.ok(voiceOptions.some(name=>name.includes('Aria')));assert.ok(voiceOptions.every(name=>!name.includes('David')));
+    assert.equal(await voicePage.getByLabel('話す声（女性）').inputValue(),'');
+    await voicePage.getByRole('button',{name:'アバター設定を閉じる'}).click();
     const mouthHash = () => voicePage.locator('.portrait-canvas').evaluate(canvas=>Array.from(canvas.getContext('2d').getImageData(190,260,160,120).data).reduce((hash,n)=>(hash*31+n)>>>0,0));
     const closedHash=await mouthHash();
     await voicePage.evaluate(()=>window.holdSpeech=true);
@@ -149,7 +162,8 @@ const path = require('node:path');
     await voicePage.evaluate(()=>{window.holdSpeech=false;window.activeTestUtterance.onstart(new Event('start'));});
     await voicePage.locator('.avatar-stage.is-speaking').waitFor();
     assert.match(await voicePage.evaluate(()=>window.activeTestUtterance.text),/Maple Café/);
-    await voicePage.evaluate(()=>{const u=window.activeTestUtterance;u.onboundary(new SpeechSynthesisEvent('boundary',{utterance:u,name:'word',charIndex:u.text.indexOf('Welcome'),charLength:7}));});
+    assert.equal(await voicePage.evaluate(()=>window.activeTestUtterance.voice.voiceURI),'test-female');
+    await voicePage.evaluate(()=>{const u=window.activeTestUtterance;u.onboundary({name:'word',charIndex:u.text.indexOf('Welcome'),charLength:7});});
     await voicePage.waitForFunction(hash=>{
       const canvas=document.querySelector('.portrait-canvas');
       const current=Array.from(canvas.getContext('2d').getImageData(190,260,160,120).data).reduce((h,n)=>(h*31+n)>>>0,0);
@@ -174,7 +188,19 @@ const path = require('node:path');
     await voicePage.waitForFunction(()=>document.querySelector('.portrait-canvas').dataset.mouthFrame==='1');
     assert.equal(await voicePage.locator('.photo-performance').evaluate(el=>getComputedStyle(el).animationName),'none');
     await voicePage.getByRole('button',{name:'読み上げを止める',exact:false}).click();
+    await voicePage.evaluate(()=>{window.testVoiceList=window.testVoiceList.filter(v=>v.voiceURI==='test-male');window.speechSynthesis.dispatchEvent(new Event('voiceschanged'));});
+    const playsBefore=await voicePage.evaluate(()=>window.playedUtterances.length);
+    await voicePage.getByRole('button',{name:'あいさつを聞く',exact:false}).click();
+    await voicePage.getByRole('alert').getByText(/女性の英語の声が見つかりません/).waitFor();
+    assert.equal(await voicePage.evaluate(()=>window.playedUtterances.length),playsBefore);
+    await voicePage.getByRole('button',{name:'あいさつを聞く',exact:false}).click();
+    await voicePage.getByRole('status').getByText('女性の声を探しています…',{exact:true}).waitFor();
+    await voicePage.evaluate(()=>{window.testVoiceList.push({voiceURI:'test-female',name:'Microsoft Aria Online (Natural)',lang:'en-US'});window.speechSynthesis.dispatchEvent(new Event('voiceschanged'));});
+    await voicePage.locator('.avatar-stage.is-speaking').waitFor();
+    assert.equal(await voicePage.evaluate(()=>window.activeTestUtterance.voice.voiceURI),'test-female');
+    await voicePage.getByRole('button',{name:'読み上げを止める',exact:false}).click();
     await voicePage.close();
+    console.log('PASS: female voice beats a saved male preference, male choices are hidden, missing female voices never fall back to male and delayed female voices start correctly');
     console.log('PASS: real portrait pixels change with word events, lips close on stop/end, blink frames render, reduced motion works, automatic speech start/end and stop control work (speech events simulated)');
     assert.deepEqual(errors,[]);
     console.log('PASS: mobile navigation, conversation, no horizontal overflow and no browser exceptions');
