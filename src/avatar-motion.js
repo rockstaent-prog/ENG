@@ -17,11 +17,11 @@ export function avatarPose(time, activity = 0, listening = 0, wordAge = 10, redu
   };
 }
 
-export function portraitPoint(x, y, pose) {
-  const head = 1 - smoothstep(0.56, 0.86, y);
-  const shoulders = smoothstep(0.63, 0.96, y);
+export function portraitPoint(x, y, pose, upperBody = false) {
+  const head = 1 - smoothstep(upperBody ? 0.3 : 0.56, upperBody ? 0.54 : 0.86, y);
+  const shoulders = smoothstep(upperBody ? 0.45 : 0.63, 0.96, y);
   const angle = pose.turn * head;
-  const dx = x - 0.51, dy = y - 0.77;
+  const dx = x - 0.51, dy = y - (upperBody ? 0.43 : 0.77);
   const rotateX = dx * Math.cos(angle) - dy * Math.sin(angle) - dx;
   const rotateY = dx * Math.sin(angle) + dy * Math.cos(angle) - dy;
   return {
@@ -40,13 +40,13 @@ export function portraitMesh(columns = 6, rows = 16) {
   return {points, triangles};
 }
 
-export function drawPortrait(ctx, texture, mesh, pose, size) {
+export function drawPortrait(ctx, texture, mesh, pose, size, {height = size, scale = 1.045, upperBody = false} = {}) {
   const destination = mesh.points.map(point => {
-    const moved = portraitPoint(point.x, point.y, pose);
-    return {x: (0.5 + (moved.x - 0.5) * 1.045) * size, y: (0.5 + (moved.y - 0.5) * 1.045) * size};
+    const moved = portraitPoint(point.x, point.y, pose, upperBody);
+    return {x: (0.5 + (moved.x - 0.5) * scale) * size, y: (0.5 + (moved.y - 0.5) * scale) * height};
   });
   for (const ids of mesh.triangles) {
-    const [p0, p1, p2] = ids.map(id => ({x:mesh.points[id].x * size,y:mesh.points[id].y * size}));
+    const [p0, p1, p2] = ids.map(id => ({x:mesh.points[id].x * size,y:mesh.points[id].y * height}));
     const [q0, q1, q2] = ids.map(id => destination[id]);
     const determinant = (p1.x-p0.x)*(p2.y-p0.y) - (p2.x-p0.x)*(p1.y-p0.y);
     const a = ((q1.x-q0.x)*(p2.y-p0.y) - (q2.x-q0.x)*(p1.y-p0.y)) / determinant;

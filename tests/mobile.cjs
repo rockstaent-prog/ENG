@@ -51,6 +51,18 @@ const assert=require('node:assert/strict');
       assert.ok(await page.getByLabel('相棒の名前').evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=16));
       await page.getByLabel('返事を自動で読み上げる').uncheck();
       await page.getByRole('button',{name:'アバター設定を閉じる'}).click();
+      if(width===320 || width===390 || width===844){
+        const tall=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=200;canvas.height=600;canvas.getContext('2d').fillRect(0,0,200,600);return canvas.toDataURL('image/png').split(',')[1];});
+        await page.getByRole('button',{name:'アバター設定',exact:true}).click();
+        await page.getByLabel('好きな画像を設定',{exact:true}).setInputFiles({name:'upper-body.png',mimeType:'image/png',buffer:Buffer.from(tall,'base64')});
+        await page.getByRole('button',{name:'写真全体を映す',exact:true}).waitFor();
+        await page.getByRole('button',{name:'アバター設定を閉じる'}).click();
+        await page.locator('.original-photo-canvas[data-ready="true"]').waitFor();
+        await fits(page,`${width}x${height} whole original photo`);
+        await page.getByRole('button',{name:'アバター設定',exact:true}).click();
+        await page.getByRole('button',{name:'エマ',exact:false}).click();
+        await page.getByRole('button',{name:'アバター設定を閉じる'}).click();
+      }
       if(width===390){
         await page.evaluate(()=>document.documentElement.style.setProperty('--safe-bottom','34px'));
         await fits(page,'iPhone-style bottom safe area');

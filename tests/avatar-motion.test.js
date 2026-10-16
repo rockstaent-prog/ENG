@@ -34,3 +34,14 @@ test('reduced motion fixes head and body position and speaking has more head mov
   for (let time=0;time<10000;time+=200) {idle.push(Math.abs(avatarPose(time).turn));speaking.push(Math.abs(avatarPose(time,1).turn));}
   assert.ok(Math.max(...speaking)>Math.max(...idle)*4);
 });
+
+test('whole-photo motion keeps every image corner inside the frame', () => {
+  for (let time=0;time<15000;time+=200) {
+    const pose=avatarPose(time,1,1,0.3);
+    for (const point of portraitMesh().points) {
+      const moved=portraitPoint(point.x,point.y,pose,true);
+      const x=0.5+(moved.x-0.5)*0.94, y=0.5+(moved.y-0.5)*0.94;
+      assert.ok(x>=0 && x<=1 && y>=0 && y<=1);
+    }
+  }
+});

@@ -5,6 +5,13 @@
 .face-to-face .avatar-spotlight{max-width:480px}
 .face-to-face .stage-character{border-radius:24px}
 .face-to-face>.avatar-stage:after{display:none}
+.whole-photo img{object-fit:contain!important;object-position:center!important;transform:none!important}
+.original-photo{position:relative;animation:none!important}
+.original-photo>img,.original-photo-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain!important;object-position:center!important;transform:none!important}
+.original-photo.ready>img{opacity:0}
+.photo-mode-buttons{display:flex;gap:7px;margin-bottom:12px}
+.photo-mode-buttons button{flex:1;min-height:44px;border:1px solid #e3d7ee;border-radius:9px;padding:8px 6px;font-size:12px;color:#8d719f;background:#fff}
+.photo-mode-buttons button[aria-pressed=true]{background:#eee4f8;border-color:#b99bd3;color:#71508b}
 .chat-history-toggle{font-size:10px;color:#8b6fa5;min-height:38px;padding:6px 9px;border:1px solid #e9def2;border-radius:8px;white-space:nowrap}
 .chat-history-toggle[aria-pressed=true]{background:#f1e9f9;color:#72508f}
 .face-to-face.history-view{grid-template-columns:minmax(190px,.6fr) minmax(0,1.4fr)}
@@ -21,6 +28,10 @@
   .face-to-face .avatar-focus-button{height:100%;border-radius:0;display:flex;justify-content:center}
   .face-to-face .stage-character{width:100%;height:100%;aspect-ratio:auto;max-width:440px;border:0;border-radius:0;box-shadow:none}
   .face-to-face .photo-performance{height:100%;max-width:none}
+  .whole-photo-conversation>.avatar-stage{flex-basis:min(53dvh,500px);height:min(53dvh,500px);min-height:160px;flex-direction:column}
+  .whole-photo-conversation .avatar-spotlight{flex:1;min-height:0}
+  .whole-photo-conversation .avatar-introduction{position:relative;flex-shrink:0;padding:7px 12px;background:#eee5f5;pointer-events:auto;width:100%}
+  .whole-photo-conversation .avatar-introduction h2{color:#78558e;text-shadow:none;font-size:18px}
   .face-to-face .photo-performance>img,.face-to-face .portrait-canvas{object-fit:cover;object-position:center 37%}
   .face-to-face .avatar-focus-button>span:last-child{left:14px;bottom:auto;top:12px;transform:none;font-size:10px;padding:7px 10px;background:#ffffffd9}
   .face-to-face .avatar-introduction{position:absolute;left:0;right:0;bottom:0;padding:28px 14px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(transparent,#3b2c438c);pointer-events:none;color:#fff;text-align:left}

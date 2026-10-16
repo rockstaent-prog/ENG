@@ -10,7 +10,7 @@ test('fresh or unavailable avatar storage uses the supplied portrait', () => {
 
 test('avatar settings restore image, name and voice preferences', () => {
   const settings = {kind:'custom',name:'  Emma  ',image:'data:image/png;base64,YQ==',autoRead:false,voiceURI:'English Voice'};
-  assert.deepEqual(readAvatar({getItem: () => JSON.stringify(settings)}), {...settings,name:'Emma',imageX:50,imageY:35,imageZoom:1});
+  assert.deepEqual(readAvatar({getItem: () => JSON.stringify(settings)}), {...settings,name:'Emma',imageX:50,imageY:35,imageZoom:1,photoMode:'whole'});
 });
 
 test('invalid image URLs and oversized data cannot become saved avatars', () => {

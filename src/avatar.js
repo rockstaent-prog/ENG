@@ -5,7 +5,7 @@ export const avatarPresets = [
   { id: 'bear', name: 'ベア', label: 'くま', color: '#c4aa91' },
   { id: 'robot', name: 'ロボ', label: 'ロボット', color: '#93bbb5' },
 ];
-export const defaultAvatar = { kind: 'portrait', name: 'Emma', image: '', autoRead: true, voiceURI: '', imageX: 50, imageY: 35, imageZoom: 1 };
+export const defaultAvatar = { kind: 'portrait', name: 'Emma', image: '', autoRead: true, voiceURI: '', imageX: 50, imageY: 35, imageZoom: 1, photoMode: 'whole' };
 export const avatarStorageKey = 'komorebi-avatar';
 export function readAvatar(storage) {
   try {
@@ -21,6 +21,7 @@ export function readAvatar(storage) {
       imageX: Number.isFinite(value.imageX) ? Math.max(0, Math.min(100, value.imageX)) : 50,
       imageY: Number.isFinite(value.imageY) ? Math.max(0, Math.min(100, value.imageY)) : 35,
       imageZoom: Number.isFinite(value.imageZoom) ? Math.max(1, Math.min(2, value.imageZoom)) : 1,
+      photoMode: value.photoMode === 'crop' ? 'crop' : 'whole',
     };
   } catch { return { ...defaultAvatar }; }
 }
@@ -33,6 +34,12 @@ export async function prepareAvatarImage(file) {
     const image = new Image();
     image.src = url;
     try { await image.decode(); } catch { throw new Error('画像を読み込めませんでした。別の画像をお試しください。'); }
+    // Small originals fit in local storage unchanged, including their full frame.
+    if (file.size <= 280000) return await new Promise((resolve, reject) => {
+      const reader = new FileReader(); reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('画像を読み込めませんでした。'));
+      reader.readAsDataURL(file);
+    });
     const canvas = document.createElement('canvas');
     const ratio = Math.min(1, 768 / Math.max(image.naturalWidth, image.naturalHeight));
     canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio));
