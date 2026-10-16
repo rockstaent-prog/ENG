@@ -1,5 +1,5 @@
 export const avatarPresets = [
-  { id: 'portrait', name: 'Emma', label: 'エマ', image: './avatars/conversation-partner.png' },
+  { id: 'portrait', name: 'Emma', label: 'エマ', image: typeof __AVATAR_IMAGE__ !== 'undefined' ? __AVATAR_IMAGE__ : './avatars/conversation-partner.png' },
   { id: 'fox', name: 'こも', label: 'きつね', color: '#efba8d' },
   { id: 'cat', name: 'ミミ', label: 'ねこ', color: '#b4a3d5' },
   { id: 'bear', name: 'ベア', label: 'くま', color: '#c4aa91' },

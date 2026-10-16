@@ -2,6 +2,12 @@
 
 日本語で使える、初心者向けの英語学習Webアプリです。React + Viteで動作します。
 
+## すぐ操作してみる（PC向け）
+
+[アプリの1ファイル版をダウンロード](https://github.com/rockstaent-prog/ENG/raw/refs/heads/main/preview/komorebi.html)して、PCに保存した `komorebi.html` をChrome・Edgeなどで開いてください。Node.js、APIキー、ターミナル操作は不要です。画像・CSS・JavaScript・ガイド会話を含んでいます。詳しくは [開き方](preview/README.md) を参照してください。
+
+開発中に1ファイル版を更新する場合は `npm run build:standalone`、操作確認は `npm run test:standalone` を実行します。通常の環境セットアップでは、配布済みファイルを再生成する必要はありません。
+
 ## できること
 
 - 6レッスン・計30問：選択問題と単語の並べ替え。完了すると次のレッスンを解放。
@@ -44,7 +50,7 @@ npm run test:preview
 
 ### GitHub Pagesで公開する場合
 
-公開用のワークフロー `.github/workflows/pages.yml` を用意しています。手動で実行するまで公開しません。初期アバターの画像は公開ファイルに含まれます。
+公開用のワークフロー `.github/workflows/pages.yml` を用意しています。`main` への反映時に自動で公開処理を実行します。手動実行も可能です。初期アバターの画像は公開ファイルに含まれます。リポジトリでPagesが無効の場合は、先にSourceをGitHub Actionsに設定する必要があります。
 
 1. コードをGitHubリポジトリに反映する。
 2. リポジトリの **Settings → Pages → Build and deployment → Source** で **GitHub Actions** を選ぶ。
