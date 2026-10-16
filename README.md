@@ -51,7 +51,7 @@ npm run test:preview
 3. **Actions → Publish app preview → Run workflow** を実行する。
 4. 成功した実行の **deploy / github-pages** に表示されるURLを開く。
 
-既に別のホスティングを使っている場合は `dist-preview/` の内容を配信できます。公開URLはデプロイ成功後に確認します。現時点でGitHubへのプッシュやPagesの公開は実行していません。
+既に別のホスティングを使っている場合は `dist-preview/` の内容を配信できます。コードと公開用ワークフローはGitHubの `main` に反映済みです。Pagesの公開はまだ実行していません。公開URLはデプロイ成功後に確認します。
 
 ## 会話モード
 
