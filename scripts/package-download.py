@@ -1,0 +1,31 @@
+"""Bundle the self-contained app as a ZIP for a normal browser download."""
+from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
+
+preview = Path(__file__).resolve().parent.parent / "preview"
+html = (preview / "komorebi.html").read_bytes()
+instructions = """こもれび 英語学習アプリ
+
+「アプリを開く.html」をダブルクリックしてください。
+英語の学習や、Emmaとの会話を試せます。
+
+文字の一覧が出た場合は、ファイルを右クリックして
+「プログラムから開く」→「Chrome」または「Edge」を選んでください。
+
+インストールやAPIキーの入力は不要です。
+パソコン向けです。スマートフォンのファイル表示では動かない場合があります。
+"""
+
+with ZipFile(preview / "komorebi.zip", "w", compression=ZIP_DEFLATED, compresslevel=9) as archive:
+    for name, data in [("アプリを開く.html", html), ("はじめに.txt", instructions.encode("utf-8-sig"))]:
+        info = ZipInfo(name)
+        info.compress_type = ZIP_DEFLATED
+        info.external_attr = 0o100644 << 16
+        archive.writestr(info, data, compresslevel=9)
+
+with ZipFile(preview / "komorebi.zip") as archive:
+    assert archive.testzip() is None, "Archive CRC verification failed"
+    assert archive.namelist() == ["アプリを開く.html", "はじめに.txt"]
+    assert archive.read("アプリを開く.html") == html, "Packaged app differs from the source artifact"
+
+print(f"Saved and verified preview/komorebi.zip ({(preview / 'komorebi.zip').stat().st_size:,} bytes)")

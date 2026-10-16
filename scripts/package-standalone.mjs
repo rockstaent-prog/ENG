@@ -1,5 +1,6 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const root = path.resolve('dist-standalone');
 let html = await readFile(path.join(root, 'index.html'), 'utf8');
@@ -24,3 +25,4 @@ if (/<script\b[^>]*\bsrc=|<link\b[^>]*\brel="stylesheet"/i.test(html)) throw new
 await mkdir('preview', {recursive: true});
 await writeFile('preview/komorebi.html', html);
 console.log(`Saved preview/komorebi.html (${Buffer.byteLength(html).toLocaleString()} bytes). Open this single file in a desktop browser; no server or API key is needed.`);
+execFileSync('python3', ['scripts/package-download.py'], { stdio: 'inherit' });

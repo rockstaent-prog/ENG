@@ -4,7 +4,7 @@
 
 ## すぐ操作してみる（PC向け）
 
-[アプリの1ファイル版をダウンロード](https://github.com/rockstaent-prog/ENG/raw/refs/heads/main/preview/komorebi.html)して、PCに保存した `komorebi.html` をChrome・Edgeなどで開いてください。Node.js、APIキー、ターミナル操作は不要です。画像・CSS・JavaScript・ガイド会話を含んでいます。詳しくは [開き方](preview/README.md) を参照してください。
+[アプリのZIPをダウンロード](https://github.com/rockstaent-prog/ENG/raw/refs/heads/main/preview/komorebi.zip)して、ZIPの中の **「アプリを開く.html」** をダブルクリックしてください。パソコン向けです。インストールやAPIキーは不要です。詳しくは [開き方](preview/README.md) を参照してください。
 
 開発中に1ファイル版を更新する場合は `npm run build:standalone`、操作確認は `npm run test:standalone` を実行します。通常の環境セットアップでは、配布済みファイルを再生成する必要はありません。
 

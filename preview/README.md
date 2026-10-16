@@ -1,9 +1,9 @@
 # 開いて操作できるお試し版
 
-1. [こちらから komorebi.html をダウンロード](https://github.com/rockstaent-prog/ENG/raw/refs/heads/main/preview/komorebi.html)します。GitHubへのログインを求められたら、このリポジトリを開けるアカウントでログインしてください。
-2. パソコンに保存した `komorebi.html` をダブルクリックして、Chrome・Edgeなどのブラウザで開きます。
+1. [アプリのZIPをダウンロード](https://github.com/rockstaent-prog/ENG/raw/refs/heads/main/preview/komorebi.zip)します。
+2. 保存したZIPを開き、中の **「アプリを開く.html」** をダブルクリックします。
 
-**GitHubに表示されるHTMLのソースコードを読む必要はありません。保存したファイルをブラウザで開いてください。**
+パソコン向けです。GitHubへのログインを求められたら、このリポジトリを開けるアカウントでログインしてください。
 
 「学習する」でレッスン、「会話する」でEmmaとのガイド会話を操作できます。「アバター設定」から名前や画像を変えられます。発音は「あいさつを聞く」や返事の「聞く」で再生します。画像・画面・ガイド会話はこの1ファイルに含まれています。
 
@@ -13,6 +13,6 @@ iPhoneの「ファイル」アプリ内プレビューなどはJavaScriptを実�
 
 改善してほしい点は「どの画面で、何をしたら、どうなったか」をチャットで伝えてください。
 
-開発時の再生成: `npm run build:standalone`。このコマンドは配布用の `komorebi.html` を更新します。
+開発時の再生成: `npm run build:standalone`。このコマンドは配布用の `komorebi.html` と `komorebi.zip` を更新します。ZIPの生成にはPython 3を使います。ダウンロードしてアプリを使う人にはPythonは不要です。
 
 検証について: このクラウド環境の管理ブラウザは `file://` を禁止しているため、ローカルファイルとして直接開く検証は実行できません。テストでは他のファイルもAPIも用意せず、このHTMLだけをHTTP配信し、画像表示・会話・レッスン完了・記録保存・再読み込みを実ブラウザで検証しています。管理ポリシーでHTMLファイルの実行が禁止されているPCでは、GitHub Pages版を使ってください。
