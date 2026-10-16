@@ -154,6 +154,8 @@ const path = require('node:path');
     assert.ok(voiceOptions.some(name=>name.includes('Aria')));assert.ok(voiceOptions.every(name=>!name.includes('David')));
     assert.equal(await voicePage.getByLabel('話す声（女性）').inputValue(),'');
     await voicePage.getByRole('button',{name:'アバター設定を閉じる'}).click();
+    await voicePage.getByRole('button',{name:'履歴を広く',exact:true}).click();
+    assert.equal(await voicePage.locator('.history-view').count(),1);
     const mouthHash = () => voicePage.locator('.portrait-canvas').evaluate(canvas=>Array.from(canvas.getContext('2d').getImageData(190,260,160,120).data).reduce((hash,n)=>(hash*31+n)>>>0,0));
     const closedHash=await mouthHash();
     await voicePage.evaluate(()=>window.holdSpeech=true);
@@ -161,8 +163,19 @@ const path = require('node:path');
     assert.equal(await voicePage.locator('.avatar-stage.is-speaking').count(),0);
     await voicePage.evaluate(()=>{window.holdSpeech=false;window.activeTestUtterance.onstart(new Event('start'));});
     await voicePage.locator('.avatar-stage.is-speaking').waitFor();
+    assert.equal(await voicePage.locator('.history-view').count(),0,'speech returns to the large avatar view');
     assert.match(await voicePage.evaluate(()=>window.activeTestUtterance.text),/Maple Café/);
     assert.equal(await voicePage.evaluate(()=>window.activeTestUtterance.voice.voiceURI),'test-female');
+    const bodyHash = () => voicePage.locator('.portrait-canvas').evaluate(canvas=>{
+      const ctx=canvas.getContext('2d');
+      return [ctx.getImageData(30,20,200,90).data,ctx.getImageData(270,430,210,70).data].map(data=>Array.from(data).reduce((h,n)=>(h*31+n)>>>0,0));
+    });
+    const initialBody=await bodyHash();
+    await voicePage.waitForFunction(before=>{
+      const canvas=document.querySelector('.portrait-canvas'),ctx=canvas.getContext('2d');
+      const now=[ctx.getImageData(30,20,200,90).data,ctx.getImageData(270,430,210,70).data].map(data=>Array.from(data).reduce((h,n)=>(h*31+n)>>>0,0));
+      return now.every((hash,index)=>hash!==before[index]);
+    },initialBody);
     await voicePage.evaluate(()=>{const u=window.activeTestUtterance;u.onboundary({name:'word',charIndex:u.text.indexOf('Welcome'),charLength:7});});
     await voicePage.waitForFunction(hash=>{
       const canvas=document.querySelector('.portrait-canvas');
@@ -186,6 +199,8 @@ const path = require('node:path');
     await voicePage.emulateMedia({reducedMotion:'reduce'});
     await voicePage.getByRole('button',{name:'あいさつを聞く',exact:false}).click();
     await voicePage.waitForFunction(()=>document.querySelector('.portrait-canvas').dataset.mouthFrame==='1');
+    assert.equal(await voicePage.locator('.portrait-canvas').getAttribute('data-head-turn'),'0.00000');
+    assert.equal(await voicePage.locator('.portrait-canvas').getAttribute('data-shoulder-shift'),'0.00000');
     assert.equal(await voicePage.locator('.photo-performance').evaluate(el=>getComputedStyle(el).animationName),'none');
     await voicePage.getByRole('button',{name:'読み上げを止める',exact:false}).click();
     await voicePage.evaluate(()=>{window.testVoiceList=window.testVoiceList.filter(v=>v.voiceURI==='test-male');window.speechSynthesis.dispatchEvent(new Event('voiceschanged'));});
@@ -202,6 +217,7 @@ const path = require('node:path');
     await voicePage.close();
     console.log('PASS: female voice beats a saved male preference, male choices are hidden, missing female voices never fall back to male and delayed female voices start correctly');
     console.log('PASS: real portrait pixels change with word events, lips close on stop/end, blink frames render, reduced motion works, automatic speech start/end and stop control work (speech events simulated)');
+    console.log('PASS: head and shoulder pixels animate independently of the mouth, speech expands the avatar view and reduced motion fixes the whole portrait');
     assert.deepEqual(errors,[]);
     console.log('PASS: mobile navigation, conversation, no horizontal overflow and no browser exceptions');
   } finally { await browser?.close(); await server.close(); }
