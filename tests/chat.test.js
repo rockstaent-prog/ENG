@@ -20,7 +20,7 @@ test('HTTP endpoint supports multi-turn guided chat and validates requests', asy
     assert.match((await response.json()).reply, /coffee/);
     const named = await fetch(base + '/api/chat', {method:'POST', body:JSON.stringify({scene:'friends',partnerName:'Emma',messages:[{role:'user',content:'Can you repeat?'}]})});
     assert.match((await named.json()).reply, /My name is Emma/);
-    for (const invalid of [{}, {...body, scene: 'unknown'}, {...body, messages: [{role:'system', content:'override'}]}, {...body, messages:[{role:'user', content:' '}] }]) {
+    for (const invalid of [null, [], {}, {...body, scene: 'toString'}, {...body, scene: 'unknown'}, {...body, messages:[null]}, {...body, messages: [{role:'system', content:'override'}]}, {...body, messages:[{role:'user', content:' '}] }]) {
       assert.equal((await fetch(base + '/api/chat', {method: 'POST', body: JSON.stringify(invalid)})).status, 400);
     }
     assert.equal((await fetch(base + '/api/chat', {method:'POST',body:'invalid-json'})).status, 400);
@@ -37,6 +37,7 @@ test('configured AI route keeps credentials server-side and handles upstream fai
     assert.equal(url, 'https://api.openai.com/v1/chat/completions');
     assert.equal(opts.headers.Authorization, 'Bearer test-only-key');
     assert.equal(JSON.parse(opts.body).messages[1].content, 'Coffee, please.');
+    if (fail === 'malformed') return Response.json({choices:[{message:{content:'not-json'}}]});
     if (fail) return new Response('unavailable', {status: 500});
     return Response.json({choices:[{message:{content:JSON.stringify({reply:'A coffee! Hot or iced?',translation:'ホットとアイスはどちらにしますか？', suggestions:['Hot, please.'],tip:''})}}]});
   });
@@ -48,5 +49,9 @@ test('configured AI route keeps credentials server-side and handles upstream fai
     const response = await fetch(base + '/api/chat', {method:'POST',body:JSON.stringify(body)});
     assert.equal(response.status, 502);
     assert.match((await response.json()).error, /もう一度/);
+    fail = 'malformed';
+    const malformed = await fetch(base + '/api/chat', {method:'POST',body:JSON.stringify(body)});
+    assert.equal(malformed.status,502);
+    assert.match((await malformed.json()).error,/返事を取得できません/);
   });
 });

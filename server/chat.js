@@ -16,10 +16,14 @@ export function chatMiddleware(apiKey) {
         body += chunk;
         if (Buffer.byteLength(body) > 24000) { res.statusCode = 413; return res.end(JSON.stringify({ error: '会話が長すぎます。新しい会話を始めてください。' })); }
       }
-      const { scene, messages, partnerName } = JSON.parse(body);
+      let parsed;
+      try { parsed = JSON.parse(body); }
+      catch { res.statusCode = 400; return res.end(JSON.stringify({ error: 'メッセージの形式を確認してください。' })); }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'メッセージを確認してください。' })); }
+      const { scene, messages, partnerName } = parsed;
       if (partnerName !== undefined && (typeof partnerName !== 'string' || partnerName.length > 24)) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'アバターの名前を確認してください。' })); }
       const name = partnerName?.trim() || 'Alex';
-      if (!scenes[scene] || !Array.isArray(messages) || !messages.length || messages.length > 24 || messages.some(m => !['user', 'assistant'].includes(m.role) || typeof m.content !== 'string' || m.content.length > 1000) || messages.at(-1).role !== 'user' || !messages.at(-1).content.trim()) {
+      if (!Object.hasOwn(scenes, scene) || !Array.isArray(messages) || !messages.length || messages.length > 24 || messages.some(m => !m || !['user', 'assistant'].includes(m.role) || typeof m.content !== 'string' || m.content.length > 1000) || messages.at(-1).role !== 'user' || !messages.at(-1).content.trim()) {
         res.statusCode = 400; return res.end(JSON.stringify({ error: 'メッセージを確認してください。' }));
       }
       if (!apiKey) {
@@ -39,11 +43,11 @@ export function chatMiddleware(apiKey) {
       if (!upstream.ok) throw new Error('upstream');
       const result = await upstream.json();
       const answer = JSON.parse(result.choices[0].message.content);
-      if (typeof answer.reply !== 'string' || typeof answer.translation !== 'string' || !Array.isArray(answer.suggestions) || answer.suggestions.some(s => typeof s !== 'string')) throw new Error('format');
+      if (!answer || typeof answer.reply !== 'string' || !answer.reply.trim() || typeof answer.translation !== 'string' || !Array.isArray(answer.suggestions) || answer.suggestions.some(s => typeof s !== 'string')) throw new Error('format');
       res.end(JSON.stringify({ reply: answer.reply, translation: answer.translation, suggestions: answer.suggestions.slice(0, 3), tip: typeof answer.tip === 'string' ? answer.tip : '', mode: 'ai' }));
     } catch (error) {
-      res.statusCode = error instanceof SyntaxError ? 400 : 502;
-      res.end(JSON.stringify({ error: error instanceof SyntaxError ? 'メッセージの形式を確認してください。' : '返事を取得できませんでした。少し待ってから、もう一度送信してください。' }));
+      res.statusCode = 502;
+      res.end(JSON.stringify({ error: '返事を取得できませんでした。少し待ってから、もう一度送信してください。' }));
     }
   };
 }

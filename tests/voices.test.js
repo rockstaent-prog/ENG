@@ -51,3 +51,19 @@ test('an unavailable female voice reports a useful failure and stays silent',asy
   await new Promise(resolve=>speak('Hello',{femaleOnly:true,onUnavailable:resolve}));
   assert.equal(state.played.length,0);
 });
+
+test('a speech engine failure is reported without an uncaught exception',t=>{
+  engine(t,[female]);
+  window.speechSynthesis.speak=()=>{throw new Error('Device unavailable');};
+  let reported='';
+  assert.equal(speak('Hello',{femaleOnly:true,onError:e=>{reported=e.error;}}),'failed');
+  assert.equal(reported,'synthesis-failed');
+});
+
+test('canceling speech detaches callbacks from the canceled utterance',t=>{
+  const state=engine(t,[female]);
+  speak('Hello',{femaleOnly:true,onStart(){},onEnd(){}});
+  const utterance=state.played[0];
+  cancelSpeech();
+  assert.equal(utterance.onstart,null);assert.equal(utterance.onend,null);
+});

@@ -76,6 +76,17 @@ export function readProgress(storage) {
   try {
     const p = JSON.parse(storage.getItem('komorebi-progress'));
     if (!p || !Array.isArray(p.completed) || !Number.isFinite(p.xp) || p.xp < 0 || !p.history || typeof p.history !== 'object' || Array.isArray(p.history) || !Array.isArray(p.mistakes) || !p.best || typeof p.best !== 'object') return structuredClone(initialProgress);
-    return { ...p, completed: p.completed.filter(id => lessons.some(l => l.id === id)), mistakes: p.mistakes.filter(q => q && ['choice', 'order'].includes(q.type) && typeof q.prompt === 'string' && (q.type === 'choice' ? Array.isArray(q.options) && typeof q.answer === 'string' : Array.isArray(q.words) && Array.isArray(q.answer))) };
+    // Rebuild saved reviews from current lesson questions. Stored objects may be
+    // damaged or belong to an older version and must never become React children.
+    const questions = lessons.flatMap(l => l.questions);
+    const reviews = p.mistakes.map(q => questions.find(current => current.prompt === q?.prompt)).filter(Boolean);
+    const finite = value => Number.isFinite(value) && value >= 0;
+    return {
+      completed: [...new Set(p.completed.filter(id => lessons.some(l => l.id === id)))],
+      xp: p.xp,
+      history: Object.fromEntries(Object.entries(p.history).filter(([day, value]) => /^\d{4}-\d{2}-\d{2}$/.test(day) && finite(value))),
+      mistakes: [...new Set(reviews)],
+      best: Object.fromEntries(Object.entries(p.best).filter(([id, value]) => (id === 'review' || lessons.some(l => l.id === id)) && finite(value) && value <= 100)),
+    };
   } catch { return structuredClone(initialProgress); }
 }

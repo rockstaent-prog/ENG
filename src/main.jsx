@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BookOpen, House, MessageCircle, Layers, BarChart3, Flame, Zap, ChevronRight, Check, X, LockKeyhole, Star, Volume2, ArrowRight, RotateCcw, Sparkles, Coffee, Sun, Plane, ShoppingBag, Hand, Send, Mic, MicOff, Trophy, Target, Headphones, Leaf, CheckCheck, Pencil, Upload, Square } from 'lucide-react';
 import { lessons, readProgress, localDay, streak, awardProgress } from './data';
-import { scenes, guidedReply } from './conversation';
+import { scenes } from './conversation';
+import { browserReply, requestChatReply } from './chat-client';
 import Avatar from './Avatar';
 import { avatarPresets, avatarStorageKey, readAvatar, prepareAvatarImage } from './avatar';
 import { englishVoices } from './voices';
@@ -102,6 +103,7 @@ function Conversation() {
   const [avatarSettings, setAvatarSettings] = useState(false), [speaking, setSpeaking] = useState(false), [voices, setVoices] = useState([]), [avatarError, setAvatarError] = useState(''), [uploading, setUploading] = useState(false), [avatarSaveError, setAvatarSaveError] = useState(false);
   const [speechCue, setSpeechCue] = useState(null);
   const [preparingVoice, setPreparingVoice] = useState(false);
+  const [browserOnly, setBrowserOnly] = useState(staticPreview), [canPractice, setCanPractice] = useState(false);
   const speechId = useRef(0), avatarRef = useRef(avatar), uploadRef = useRef(0);
   avatarRef.current = avatar;
   const scrollRef = useRef(null), recognition = useRef(null), request = useRef(null), inputRef = useRef(null);
@@ -110,7 +112,12 @@ function Conversation() {
   const suggestions = messages.at(-1)?.role === 'assistant' ? messages.at(-1).suggestions : sceneInfo.suggestions;
   const femaleVoices = englishVoices(voices, true);
   const selectedVoiceURI = femaleVoices.some(v => v.voiceURI === avatar.voiceURI) ? avatar.voiceURI : '';
-  useEffect(() => { const controller = new AbortController(); if (!staticPreview) fetch('/api/chat/status', { signal: controller.signal }).then(r => r.json()).then(data => setMode(data.mode)).catch(() => {}); return () => { controller.abort(); request.current?.abort(); recognition.current?.abort(); }; }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    if (!staticPreview) fetch('/api/chat/status', { signal: controller.signal }).then(r => r.ok ? r.json() : null).then(data => { if (!controller.signal.aborted && data?.mode === 'ai') setMode('ai'); }).catch(() => {}).finally(() => clearTimeout(timer));
+    return () => { clearTimeout(timer); controller.abort(); request.current?.abort(); stopListening(); };
+  }, []);
   useEffect(() => {
     const synth = window.speechSynthesis;
     const updateVoices = () => setVoices(englishVoices(synth?.getVoices() || []));
@@ -128,7 +135,7 @@ function Conversation() {
       femaleOnly: true,
       onStart: () => { if (speechId.current === id) { setPreparingVoice(false); setSpeaking(true); setSpeechCue({text:content,index:0,at:performance.now(),boundary:false}); } },
       onBoundary: event => { if (speechId.current === id && event.name !== 'sentence') setSpeechCue({text:content,index:event.charIndex || 0,length:event.charLength || 0,at:performance.now(),boundary:true}); },
-      onEnd: () => { if (speechId.current === id) { setSpeaking(false); setSpeechCue(null); } },
+      onEnd: () => { if (speechId.current === id) { setPreparingVoice(false); setSpeaking(false); setSpeechCue(null); } },
       onError: event => { if (speechId.current === id) { setPreparingVoice(false); setSpeaking(false); setSpeechCue(null); if (!['canceled', 'interrupted'].includes(event.error)) setError('音声を再生できませんでした。返事は文字でも確認できます。'); } },
       onUnavailable: () => { if (speechId.current === id) { setPreparingVoice(false); setError('女性の英語の声が見つかりません。端末に女性の英語音声を追加するか、別のブラウザで開いてください。'); } },
     });
@@ -142,28 +149,25 @@ function Conversation() {
     catch (e) { if (uploadRef.current === id) setAvatarError(e.message); }
     finally { if (uploadRef.current === id) setUploading(false); }
   }
-  function changeScene(value) { if (busy) return; stopSpeech(); recognition.current?.abort(); setListening(false); setScene(value); setMessages([]); setDraft(''); setError(''); }
-  async function send(value = draft) {
+  function stopListening() {
+    const rec = recognition.current; recognition.current = null;
+    if (rec) { rec.onresult = null; rec.onend = null; rec.onerror = null; rec.abort(); }
+  }
+  function changeScene(value) { if (busy) return; stopSpeech(); stopListening(); setListening(false); setScene(value); setMessages([]); setDraft(''); setError(''); setCanPractice(false); }
+  async function send(value = draft, practice = false) {
     const content = value.trim(); if (!content || busy) return;
     const userMessage = { role: 'user', content };
     const prior = [...messages, userMessage];
-    stopSpeech(); recognition.current?.abort(); setListening(false);
-    setMessages(prior); setDraft(''); setBusy(true); setError('');
+    stopSpeech(); stopListening(); setListening(false);
+    setMessages(prior); setDraft(''); setBusy(true); setError(''); setCanPractice(false);
     request.current = new AbortController();
     try {
-      let data;
-      if (staticPreview) {
-        data = guidedReply(scene, content, prior.filter(m => m.role === 'user').length);
-        data.reply = data.reply.replace(/\bAlex\b/g, () => avatarName);
-        data.translation = data.translation.replace(/アレックス/g, () => avatarName);
-      } else {
-        const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: request.current.signal, body: JSON.stringify({ scene, partnerName: avatarName, messages: [{ role: 'assistant', content: sceneInfo.intro }, ...prior.map(({role, content}) => ({role, content}))].slice(-22) }) });
-        data = await response.json();
-        if (!response.ok) throw new Error(data.error || '通信に失敗しました。');
-      }
+      const payload = { scene, partnerName: avatarName, messages: [{ role: 'assistant', content: sceneInfo.intro }, ...prior.map(({role, content}) => ({role, content}))].slice(-22) };
+      const data = browserOnly || practice ? browserReply(payload) : await requestChatReply(payload, { signal: request.current.signal });
+      if (data.browserOnly) setBrowserOnly(true);
       setMessages(v => [...v, { role: 'assistant', content: data.reply, ...data }]); setMode(data.mode);
       if (avatarRef.current.autoRead) speakReply(data.reply);
-    } catch (e) { if (e.name !== 'AbortError') { setMessages(prior.slice(0, -1)); setDraft(content); setError(e.message); } }
+    } catch (e) { if (e.name !== 'AbortError') { setMessages(prior.slice(0, -1)); setDraft(content); setError(e.message); setCanPractice(true); } }
     finally { setBusy(false); inputRef.current?.focus(); }
   }
   function dictate() {
@@ -171,10 +175,11 @@ function Conversation() {
     stopSpeech();
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) { setError('このブラウザは音声入力に対応していません。キーボードから入力できます。'); return; }
+    stopListening();
     const rec = new Recognition(); recognition.current = rec; rec.lang = 'en-US'; rec.interimResults = false;
-    rec.onresult = e => { setDraft(e.results[0][0].transcript); setError(''); };
-    rec.onend = () => setListening(false);
-    rec.onerror = e => { setListening(false); setError(e.error === 'not-allowed' ? 'マイクを使うには、ブラウザでマイクの利用を許可してください。文字でも会話できます。' : '音声を聞き取れませんでした。もう一度試すか、文字で入力してください。'); };
+    rec.onresult = e => { if (recognition.current === rec) { setDraft((e.results?.[0]?.[0]?.transcript || '').slice(0, 500)); setError(''); } };
+    rec.onend = () => { if (recognition.current === rec) { recognition.current = null; setListening(false); } };
+    rec.onerror = e => { if (recognition.current === rec) { setListening(false); setError(e.error === 'not-allowed' ? 'マイクを使うには、ブラウザでマイクの利用を許可してください。文字でも会話できます。' : '音声を聞き取れませんでした。もう一度試すか、文字で入力してください。'); } };
     try { rec.start(); setListening(true); setError(''); } catch { setError('音声入力を開始できませんでした。文字で入力してください。'); }
   }
   const bubble = (content, translation, tip, key) => <div className="assistant-row" key={key}><Avatar avatar={avatar} className="message-character"/><div className="assistant-message"><div className="bubble"><p>{content}</p>{showTranslation && <p className="translation">{translation}</p>}<button className="text-button" aria-label="返事を読み上げる" onClick={() => speakReply(content)}><Volume2 size={15}/> 聞く</button></div>{tip && <div className="chat-tip"><Sparkles size={14}/>{tip}</div>}</div></div>;
@@ -191,7 +196,7 @@ function Conversation() {
     <div className={`avatar-stage ${speaking ? 'is-speaking' : ''}`}><div className="avatar-spotlight"><Avatar avatar={avatar} className="stage-character" speaking={speaking} cue={speechCue} animated/><span className="voice-waves" aria-hidden="true"><i/><i/><i/><i/><i/></span></div><div className="avatar-introduction"><span className="eyebrow">YOUR ENGLISH BUDDY</span><h2>{avatarName}</h2><p role="status" className="avatar-status">{preparingVoice ? '女性の声を探しています…' : speaking ? '話しています…' : listening ? 'あなたの声を聞いています…' : busy ? '返事を考えています…' : 'あなたと話せるのを楽しみにしています。'}</p><button className="text-button" onClick={() => speaking || preparingVoice ? stopSpeech() : speakReply(sceneInfo.intro)}>{speaking || preparingVoice ? <><Square size={13}/> 読み上げを止める</> : <><Volume2 size={15}/> あいさつを聞く</>}</button></div><button className="avatar-edit-button" aria-label="アバター設定" aria-expanded={avatarSettings} aria-controls="avatar-settings" onClick={() => { stopSpeech(); setAvatarSettings(v => !v); }}><Pencil size={13}/><span>アバター設定</span></button></div>
     <div className="chat-heading"><div className="chat-partner"><Avatar avatar={avatar} className="partner-character"/><div><strong>{avatarName}と英会話</strong><small><span className="online-dot"/>{sceneInfo.role} ・ {mode === 'ai' ? 'AIと自由に会話' : 'ガイド会話'}</small></div></div><div className="chat-tools"><button className={`translation-toggle ${showTranslation ? 'active' : ''}`} onClick={() => setShowTranslation(v => !v)} aria-pressed={showTranslation}>日本語訳</button><button className="icon-button" title="会話をはじめから" aria-label="会話をはじめから" disabled={busy} onClick={() => changeScene(scene)}><RotateCcw size={17}/></button></div></div>
     <div className="chat-messages" ref={scrollRef} aria-live="polite" role="log" aria-label="会話履歴"><div className="chat-date">今日の小さなチャレンジ</div>{bubble(sceneInfo.intro, sceneInfo.translation, '', 'intro')}{messages.map((m, i) => m.role === 'assistant' ? bubble(m.content, m.translation, m.tip, i) : <div className="user-row" key={i}><div className="bubble">{m.content}</div><span className="user-avatar">YOU</span></div>)}{busy && <div className="typing"><span/><span/><span/><small>返事を考えています</small></div>}</div>
-    <div className="chat-input-area">{error && <p role="alert" className="chat-error">{error}</p>}<div className="suggestions"><span>こんなふうに言ってみよう</span><div>{(suggestions || []).map(s => <button key={s} disabled={busy} onClick={() => send(s)}>{s}<ArrowRight size={13}/></button>)}</div></div><form className="chat-form" onSubmit={e => { e.preventDefault(); send(); }}><button type="button" className={`icon-button mic-button ${listening ? 'listening' : ''}`} disabled={busy} onClick={dictate} aria-label={listening ? '音声入力を停止' : '音声で入力'}>{listening ? <MicOff size={20}/> : <Mic size={20}/>}</button><input ref={inputRef} aria-label="英語のメッセージ" value={draft} onChange={e => setDraft(e.target.value)} placeholder={listening ? '聞いています…' : '英語で話しかけてみよう…'} maxLength={500} disabled={busy}/><button className="send-button" aria-label="メッセージを送信" disabled={busy || !draft.trim()}><Send size={19}/></button></form><p className="input-caption"><Headphones size={12}/> 音声入力は対応ブラウザで利用できます。返事の「聞く」で発音も練習。</p></div>
+    <div className="chat-input-area">{error && <div role="alert" className="chat-error"><p>{error}</p>{canPractice && <button className="text-button" onClick={() => send(draft, true)}>練習会話で続ける <ArrowRight size={14}/></button>}</div>}<div className="suggestions"><span>こんなふうに言ってみよう</span><div>{(suggestions || []).map(s => <button key={s} disabled={busy} onClick={() => send(s)}>{s}<ArrowRight size={13}/></button>)}</div></div><form className="chat-form" onSubmit={e => { e.preventDefault(); send(); }}><button type="button" className={`icon-button mic-button ${listening ? 'listening' : ''}`} disabled={busy} onClick={dictate} aria-label={listening ? '音声入力を停止' : '音声で入力'}>{listening ? <MicOff size={20}/> : <Mic size={20}/>}</button><input ref={inputRef} aria-label="英語のメッセージ" value={draft} onChange={e => setDraft(e.target.value)} placeholder={listening ? '聞いています…' : '英語で話しかけてみよう…'} maxLength={500} disabled={busy}/><button className="send-button" aria-label="メッセージを送信" disabled={busy || !draft.trim()}><Send size={19}/></button></form><p className="input-caption"><Headphones size={12}/> 音声入力は対応ブラウザで利用できます。返事の「聞く」で発音も練習。</p></div>
   </section></div>;
 }
 

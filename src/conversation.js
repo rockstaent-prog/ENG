@@ -12,8 +12,8 @@ export function guidedReply(scene, input, step = 0) {
   if (/sorry|understand|repeat|slow|わから|もう一度/.test(text)) return say(scene === 'cafe' ? 'Of course! Would you like coffee or tea?' : scene === 'travel' ? 'Of course! Where do you want to go? The station or the park?' : 'Of course! My name is Alex. What is your name?', 'もちろん！ゆっくり、簡単な言葉でもう一度聞きますね。', scenes[scene].suggestions, '聞き取れないときは “Could you say that again?” が便利です。');
   if (scene === 'cafe') {
     if (/recommend|popular|おすすめ/.test(text)) return say('Our latte is very popular! It has espresso and warm milk. Would you like to try one?', 'ラテがとても人気です！エスプレッソと温かいミルクが入っています。試してみますか？', ["Yes, a latte, please.", "I'd prefer tea."]);
+    if (/\bcard\b|\bcash\b/.test(text)) return say("Perfect! Here's your drink. Enjoy your day!", 'かしこまりました！こちらがお飲み物です。素敵な一日を！', ['Thank you so much!', 'It smells delicious!']);
     if (/much|price|cost|pay/.test(text)) return say("It's four dollars. You can pay by card or cash. Which would you prefer?", '4ドルです。カードでも現金でもお支払いいただけます。どちらにしますか？', ["I'll pay by card.", 'Cash, please.']);
-    if (/card|cash/.test(text)) return say("Perfect! Here's your drink. Enjoy your day!", 'かしこまりました！こちらがお飲み物です。素敵な一日を！', ['Thank you so much!', 'It smells delicious!']);
     if (/coffee|tea|latte|cappuccino|water|juice|milk|espresso|コーヒー|お茶/.test(text)) {
       const drink = text.match(/coffee|tea|latte|cappuccino|water|juice|milk|espresso/)?.[0] || 'drink';
       return say(`One ${drink}, coming right up! Would you like it hot or iced?`, `${drink}を1つですね！ホットとアイス、どちらにしますか？`, ['Hot, please.', "I'd like it iced, please."], /please/.test(text) ? '“please” を使って丁寧に注文できています！' : '“I’d like a …, please.” と言うと、丁寧に注文できます。');
@@ -24,8 +24,8 @@ export function guidedReply(scene, input, step = 0) {
     return say("Let's practice ordering a drink. You can say, “I'd like a coffee, please.” What would you like?", '飲み物の注文を練習しましょう。「コーヒーをお願いします」と言えます。何にしますか？', scenes.cafe.suggestions, 'このガイド会話では、飲み物の注文・おすすめ・値段・支払いを練習できます。');
   }
   if (scene === 'travel') {
-    if (/station|train/.test(text)) return say("The station is two blocks from here. Go straight, then turn left. Are you taking a train today?", '駅はここから2ブロック先です。まっすぐ進んで左に曲がってください。今日は電車に乗るのですか？', ['Yes. Where can I buy a ticket?', 'How long does it take to walk there?']);
     if (/ticket|buy/.test(text)) return say('You can buy a ticket at the machine inside the station. A day pass costs eight dollars.', '駅の中の券売機で買えます。1日券は8ドルです。', ['One day pass, please.', 'Thank you for your help!']);
+    if (/station|train/.test(text)) return say("The station is two blocks from here. Go straight, then turn left. Are you taking a train today?", '駅はここから2ブロック先です。まっすぐ進んで左に曲がってください。今日は電車に乗るのですか？', ['Yes. Where can I buy a ticket?', 'How long does it take to walk there?']);
     if (/park|café|cafe|hotel|museum/.test(text)) { const place = text.match(/park|café|cafe|hotel|museum/)[0]; return say(`The ${place} is just around the corner, on your right. It's a five-minute walk.`, `${place}は角を曲がった右側にあります。歩いて5分です。`, ['Is it open now?', 'Thank you! Is it easy to find?']); }
     if (/long|far|walk|time/.test(text)) return say("It's about a ten-minute walk. You can also take bus number five.", '歩いて10分ほどです。5番のバスでも行けます。', ['Where is the bus stop?', "I'll walk. Thank you!"]);
     if (/bus/.test(text)) return say('The bus stop is across the street, next to the bakery. A ticket is two dollars.', 'バス停は道の向こう側、パン屋さんの隣です。乗車券は2ドルです。', ['Thank you for your help!', 'Can I pay by card?']);

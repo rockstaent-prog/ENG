@@ -49,6 +49,22 @@ test('every lesson has five answerable questions and unique vocabulary', () => {
   }
 });
 
+test('damaged saved reviews and numeric records are repaired without losing valid progress', () => {
+  const question = lessons[0].questions[0];
+  const stored = { completed:['hello','hello','missing'], xp:35, history:{'2026-10-16':35,'2026-10-15':{},bad:20}, best:{hello:80,review:-1,missing:100}, mistakes:[{type:'order',prompt:'bad',words:[{}],answer:[{}]},{prompt:question.prompt,options:[{}]},null] };
+  const progress = readProgress({getItem:()=>JSON.stringify(stored)});
+  assert.deepEqual(progress.completed,['hello']);
+  assert.equal(progress.xp,35);
+  assert.deepEqual(progress.history,{'2026-10-16':35});
+  assert.deepEqual(progress.best,{hello:80});
+  assert.deepEqual(progress.mistakes,[question]);
+});
+
+test('payment and ticket choices advance the conversation instead of repeating an earlier question', () => {
+  for (const text of ["I'll pay by card.",'Can I pay in cash?','Cash, please.']) assert.match(guidedReply('cafe',text).reply,/Here's your drink/);
+  assert.match(guidedReply('travel','I need a ticket for the station.').reply,/machine inside the station/);
+});
+
 test('guided conversations respond to drink, temperature, directions and introduction', () => {
   assert.match(guidedReply('cafe', "I'd like a tea, please.").reply, /tea.*hot or iced/);
   assert.match(guidedReply('cafe', 'Iced, please.').reply, /anything to eat/);
