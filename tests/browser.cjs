@@ -134,25 +134,48 @@ const path = require('node:path');
       Object.defineProperty(window,'speechSynthesis',{configurable:true,value:{
         getVoices:()=>[],addEventListener(){},removeEventListener(){},
         cancel(){window.activeTestUtterance=null;},
-        speak(utterance){window.activeTestUtterance=utterance;utterance.onstart?.(new Event('start'));},
+        speak(utterance){window.activeTestUtterance=utterance;if(!window.holdSpeech)utterance.onstart?.(new Event('start'));},
       }});
     });
     await voicePage.goto('http://127.0.0.1:4174');
     await voicePage.getByRole('navigation',{name:'モバイルメニュー'}).getByRole('button',{name:'会話する',exact:true}).click();
     assert.ok(await voicePage.locator('.stage-character img').evaluate(img=>img.complete && img.naturalWidth>0));
+    await voicePage.locator('.portrait-canvas[data-ready="true"]').waitFor();
+    const mouthHash = () => voicePage.locator('.portrait-canvas').evaluate(canvas=>Array.from(canvas.getContext('2d').getImageData(190,260,160,120).data).reduce((hash,n)=>(hash*31+n)>>>0,0));
+    const closedHash=await mouthHash();
+    await voicePage.evaluate(()=>window.holdSpeech=true);
     await voicePage.getByRole('button',{name:'あいさつを聞く',exact:false}).click();
+    assert.equal(await voicePage.locator('.avatar-stage.is-speaking').count(),0);
+    await voicePage.evaluate(()=>{window.holdSpeech=false;window.activeTestUtterance.onstart(new Event('start'));});
     await voicePage.locator('.avatar-stage.is-speaking').waitFor();
     assert.match(await voicePage.evaluate(()=>window.activeTestUtterance.text),/Maple Café/);
+    await voicePage.evaluate(()=>{const u=window.activeTestUtterance;u.onboundary(new SpeechSynthesisEvent('boundary',{utterance:u,name:'word',charIndex:u.text.indexOf('Welcome'),charLength:7}));});
+    await voicePage.waitForFunction(hash=>{
+      const canvas=document.querySelector('.portrait-canvas');
+      const current=Array.from(canvas.getContext('2d').getImageData(190,260,160,120).data).reduce((h,n)=>(h*31+n)>>>0,0);
+      return canvas.dataset.mouthFrame!=='0' && current!==hash;
+    },closedHash);
+    await voicePage.setViewportSize({width:1440,height:1100});
+    await voicePage.screenshot({path:'test-results/emma-talking-desktop.png',fullPage:true});
+    await voicePage.setViewportSize({width:390,height:844});
     await voicePage.getByRole('button',{name:'読み上げを止める',exact:false}).click();
     assert.equal(await voicePage.locator('.avatar-stage.is-speaking').count(),0);
+    await voicePage.waitForFunction(()=>document.querySelector('.portrait-canvas').dataset.mouthFrame==='0');
+    await voicePage.waitForFunction(()=>document.querySelector('.portrait-canvas').dataset.blinking==='true',null,{timeout:9000});
     await voicePage.getByRole('button',{name:"I'd like a coffee, please."}).click();
     await voicePage.locator('.avatar-stage.is-speaking').waitFor();
     assert.match(await voicePage.evaluate(()=>window.activeTestUtterance.text),/One coffee/);
     await voicePage.screenshot({path:'test-results/avatar-speaking-mobile.png',fullPage:true});
     await voicePage.evaluate(()=>window.activeTestUtterance.onend(new Event('end')));
     assert.equal(await voicePage.locator('.avatar-stage.is-speaking').count(),0);
+    await voicePage.waitForFunction(()=>document.querySelector('.portrait-canvas').dataset.mouthFrame==='0');
+    await voicePage.emulateMedia({reducedMotion:'reduce'});
+    await voicePage.getByRole('button',{name:'あいさつを聞く',exact:false}).click();
+    await voicePage.waitForFunction(()=>document.querySelector('.portrait-canvas').dataset.mouthFrame==='1');
+    assert.equal(await voicePage.locator('.photo-performance').evaluate(el=>getComputedStyle(el).animationName),'none');
+    await voicePage.getByRole('button',{name:'読み上げを止める',exact:false}).click();
     await voicePage.close();
-    console.log('PASS: browser speech start/end, automatic reply reading, animated speaking state and stop control (speech events simulated)');
+    console.log('PASS: real portrait pixels change with word events, lips close on stop/end, blink frames render, reduced motion works, automatic speech start/end and stop control work (speech events simulated)');
     assert.deepEqual(errors,[]);
     console.log('PASS: mobile navigation, conversation, no horizontal overflow and no browser exceptions');
   } finally { await browser?.close(); await server.close(); }

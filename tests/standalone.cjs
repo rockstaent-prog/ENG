@@ -43,13 +43,14 @@ const http = require('node:http');
       await page.close(); page = await newPage();
       await page.goto(appURL);
     }
-    await page.getByRole('heading',{name:'今日も、ひとつ成長しよう。'}).waitFor();
+    await page.getByRole('heading',{name:'英語で、話してみよう。'}).waitFor();
     const nav=page.getByRole('navigation',{name:'メインメニュー',exact:true});
     await nav.getByRole('button',{name:'会話する'}).click();
     const portrait=page.locator('.stage-character img');
     assert.ok((await portrait.getAttribute('src')).startsWith('data:image/png;base64,'));
     await portrait.evaluate(image=>image.decode());
     assert.ok(await portrait.evaluate(image=>image.naturalWidth>0));
+    await page.locator('.portrait-canvas[data-ready="true"]').waitFor();
     await page.getByRole('button',{name:'アバター設定',exact:true}).click();
     await page.getByLabel('返事を自動で読み上げる').uncheck();
     await page.getByLabel('相棒の名前').fill('Nora');

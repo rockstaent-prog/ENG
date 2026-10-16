@@ -7,6 +7,7 @@ import Avatar from './Avatar';
 import { avatarPresets, avatarStorageKey, readAvatar, prepareAvatarImage } from './avatar';
 import './style.css';
 import './avatar.css';
+import './conversation-stage.css';
 
 const icons = { wave: Hand, coffee: Coffee, sun: Sun, plane: Plane, chat: MessageCircle, bag: ShoppingBag };
 const staticPreview = import.meta.env.VITE_STATIC_PREVIEW === 'true';
@@ -15,12 +16,14 @@ function speak(text, options = {}) {
   if (!('speechSynthesis' in window)) return false;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'en-US'; utterance.rate = 0.85;
-  const voice = window.speechSynthesis.getVoices().find(v => v.voiceURI === options.voiceURI && /^en[-_]/i.test(v.lang));
+  utterance.lang = 'en-US'; utterance.rate = 0.9;
+  const voices = window.speechSynthesis.getVoices().filter(v => /^en[-_]/i.test(v.lang));
+  const voice = voices.find(v => v.voiceURI === options.voiceURI) || (!options.voiceURI && voices.find(v => /Samantha|Aria|Jenny|Ava|Emma|Google US English|Zira|Sonia|Karen|Serena/i.test(v.name)));
   if (voice) { utterance.voice = voice; utterance.lang = voice.lang; }
   utterance.onstart = options.onStart;
   utterance.onend = options.onEnd;
   utterance.onerror = options.onError;
+  utterance.onboundary = options.onBoundary;
   window.speechSynthesis.speak(utterance);
   return true;
 }
@@ -28,7 +31,7 @@ function Mascot({ small = false }) {
   return <svg className={`mascot ${small ? 'small' : ''}`} viewBox="0 0 240 240" fill="none" aria-hidden="true"><ellipse cx="120" cy="214" rx="63" ry="9" fill="#DAD3ED"/><path d="M63 103 48 38q-2-13 10-8l55 37M134 67l46-38q12-8 12 7l-7 73" fill="#E6AD7E"/><path d="m61 45 14 50 23-21M177 44l-30 31 25 22" fill="#F6CEAD"/><path d="M55 123c0-51 29-65 65-65s69 17 69 66c0 40-16 84-69 84S55 164 55 123Z" fill="#F2BF94"/><path d="M59 124c11-19 40-24 61-2 22-22 52-17 66 2-1 44-22 73-66 73s-61-31-61-73Z" fill="#FFF5E6"/><ellipse cx="90" cy="129" rx="5" ry="7" fill="#49404D"/><ellipse cx="150" cy="129" rx="5" ry="7" fill="#49404D"/><ellipse cx="76" cy="145" rx="10" ry="6" fill="#EFA6A0"/><ellipse cx="163" cy="145" rx="10" ry="6" fill="#EFA6A0"/><path d="m113 146 7 5 7-5M120 152v4m-10 0q10 12 20 0" stroke="#49404D" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/><path d="m74 185-14 20m105-20 14 20" stroke="#E6AD7E" strokeWidth="15" strokeLinecap="round"/><path d="M91 190q29-14 59 0v32q-29-14-59 0v-32Z" fill="#8D78C2"/><path d="M120 185v31" stroke="#B3A1DC" strokeWidth="3"/><path d="m101 199 10-2m18 0 10 2m-38 8 10-2m18 0 10 2" stroke="#E7DFF8" strokeWidth="2" strokeLinecap="round"/><path d="m210 85 4 10 10 4-10 4-4 10-4-10-10-4 10-4Z" fill="#9B87CE"/><path d="m25 120 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z" fill="#D7AF6F"/></svg>;
 }
 function App() {
-  const [page, setPage] = useState('learn');
+  const [page, setPage] = useState(() => import.meta.env.MODE === 'standalone' ? 'talk' : 'learn');
   const [progress, setProgress] = useState(() => readProgress({ getItem: key => window.localStorage.getItem(key) }));
   const [session, setSession] = useState(null);
   const [storageError, setStorageError] = useState(false);
@@ -48,7 +51,7 @@ function App() {
       <div className="sidebar-bottom"><div className="small-note"><Sparkles size={19}/><p>小さな一歩が、<br/>大きな世界につながる。</p></div><div className="profile"><span className="avatar">🌱</span><div><strong>英語ビギナー</strong><small>レベル {Math.floor(progress.xp / 100) + 1} ・ 自分のペースで</small></div><span className="online-dot"/></div></div>
     </aside>
     <div className="app-shell"><header className="topbar"><div className="breadcrumb">マイコース <ChevronRight size={14}/><strong>英語 / はじめの一歩</strong></div><div className="top-stats"><span className="language"><span>🇺🇸</span> English</span><span title="連続学習日数"><Flame size={19} className="orange"/><b>{streak(progress.history)}</b><small>日</small></span><span title="獲得したXP"><Zap size={19} className="purple"/><b>{progress.xp}</b><small>XP</small></span></div></header>
-      <main>
+      <main className={page === 'talk' ? 'conversation-main' : undefined}>
         {storageError && <div className="notice" role="alert">このブラウザでは学習記録を保存できません。現在の画面では引き続き学習できます。</div>}
         <div className="page-heading"><div><div className="eyebrow">{page === 'learn' ? 'A LITTLE PRACTICE, A BIG WORLD.' : page === 'talk' ? 'LET’S HAVE A CONVERSATION.' : page === 'words' ? 'WORDS THAT OPEN DOORS.' : 'EVERY LITTLE STEP COUNTS.'}</div><h1>{page === 'learn' ? '今日も、ひとつ成長しよう。' : page === 'talk' ? '英語で、話してみよう。' : page === 'words' ? 'ことばを、あなたのものに。' : '積み重ねた、小さな一歩。'}</h1><p>{page === 'learn' ? '1日5分。あなたのペースで、英語のある毎日へ。' : page === 'talk' ? '間違えても大丈夫。まずは、ひとことから。' : page === 'words' ? '声に出して、くり返して。覚えたことばが世界を広げる。' : '昨日の自分より、少しだけ遠くへ。'}</p></div><div className="date-chip"><Sun size={16}/> 今日もいい学びを</div></div>
         <div className={`main-grid ${page === 'talk' ? 'conversation-grid' : ''}`}><div className="primary-column">
@@ -107,6 +110,7 @@ function Conversation() {
   const [scene, setScene] = useState('cafe'), [messages, setMessages] = useState([]), [draft, setDraft] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [mode, setMode] = useState('guided'), [listening, setListening] = useState(false), [showTranslation, setShowTranslation] = useState(true);
   const [avatar, setAvatar] = useState(() => readAvatar({ getItem: key => window.localStorage.getItem(key) }));
   const [avatarSettings, setAvatarSettings] = useState(false), [speaking, setSpeaking] = useState(false), [voices, setVoices] = useState([]), [avatarError, setAvatarError] = useState(''), [uploading, setUploading] = useState(false), [avatarSaveError, setAvatarSaveError] = useState(false);
+  const [speechCue, setSpeechCue] = useState(null);
   const speechId = useRef(0), avatarRef = useRef(avatar), uploadRef = useRef(0);
   avatarRef.current = avatar;
   const scrollRef = useRef(null), recognition = useRef(null), request = useRef(null), inputRef = useRef(null);
@@ -122,15 +126,16 @@ function Conversation() {
   }, []);
   useEffect(() => { try { localStorage.setItem(avatarStorageKey, JSON.stringify(avatar)); setAvatarSaveError(false); } catch { setAvatarSaveError(true); } }, [avatar]);
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'auto' }); }, [messages, busy]);
-  function stopSpeech() { speechId.current++; window.speechSynthesis?.cancel(); setSpeaking(false); }
+  function stopSpeech() { speechId.current++; window.speechSynthesis?.cancel(); setSpeaking(false); setSpeechCue(null); }
   function speakReply(content) {
     const id = ++speechId.current;
     setSpeaking(false);
     if (!speak(content, {
       voiceURI: avatarRef.current.voiceURI,
-      onStart: () => { if (speechId.current === id) setSpeaking(true); },
-      onEnd: () => { if (speechId.current === id) setSpeaking(false); },
-      onError: event => { if (speechId.current === id) { setSpeaking(false); if (!['canceled', 'interrupted'].includes(event.error)) setError('音声を再生できませんでした。返事は文字でも確認できます。'); } },
+      onStart: () => { if (speechId.current === id) { setSpeaking(true); setSpeechCue({text:content,index:0,at:performance.now(),boundary:false}); } },
+      onBoundary: event => { if (speechId.current === id && event.name !== 'sentence') setSpeechCue({text:content,index:event.charIndex || 0,length:event.charLength || 0,at:performance.now(),boundary:true}); },
+      onEnd: () => { if (speechId.current === id) { setSpeaking(false); setSpeechCue(null); } },
+      onError: event => { if (speechId.current === id) { setSpeaking(false); setSpeechCue(null); if (!['canceled', 'interrupted'].includes(event.error)) setError('音声を再生できませんでした。返事は文字でも確認できます。'); } },
     })) setError('このブラウザでは読み上げが利用できません。文字で会話を続けられます。');
   }
   async function uploadAvatar(event) {
@@ -186,7 +191,7 @@ function Conversation() {
       <div className="avatar-settings-footer"><label><input type="checkbox" checked={avatar.autoRead} onChange={e => { if (!e.target.checked) stopSpeech(); setAvatar(v => ({...v,autoRead:e.target.checked})); }}/>返事を自動で読み上げる</label><span>変更は自動で保存されます</span></div>
     </section>}
     <section className="conversation-panel has-avatar"><div className="scene-tabs" aria-label="会話の場面">{Object.entries(scenes).map(([key, s]) => <button key={key} disabled={busy} className={key === scene ? 'active' : ''} onClick={() => changeScene(key)}><span>{s.icon}</span>{s.title}</button>)}</div>
-    <div className={`avatar-stage ${speaking ? 'is-speaking' : ''}`}><div className="avatar-spotlight"><Avatar avatar={avatar} className="stage-character" speaking={speaking}/><span className="voice-waves" aria-hidden="true"><i/><i/><i/><i/><i/></span></div><div className="avatar-introduction"><span className="eyebrow">YOUR ENGLISH BUDDY</span><h2>{avatarName}</h2><p role="status" className="avatar-status">{speaking ? '話しています…' : listening ? 'あなたの声を聞いています…' : busy ? '返事を考えています…' : 'あなたと話せるのを楽しみにしています。'}</p><button className="text-button" onClick={() => speaking ? stopSpeech() : speakReply(sceneInfo.intro)}>{speaking ? <><Square size={13}/> 読み上げを止める</> : <><Volume2 size={15}/> あいさつを聞く</>}</button></div><button className="avatar-edit-button" aria-label="アバター設定" aria-expanded={avatarSettings} aria-controls="avatar-settings" onClick={() => { stopSpeech(); setAvatarSettings(v => !v); }}><Pencil size={13}/><span>アバター設定</span></button></div>
+    <div className={`avatar-stage ${speaking ? 'is-speaking' : ''}`}><div className="avatar-spotlight"><Avatar avatar={avatar} className="stage-character" speaking={speaking} cue={speechCue} animated/><span className="voice-waves" aria-hidden="true"><i/><i/><i/><i/><i/></span></div><div className="avatar-introduction"><span className="eyebrow">YOUR ENGLISH BUDDY</span><h2>{avatarName}</h2><p role="status" className="avatar-status">{speaking ? '話しています…' : listening ? 'あなたの声を聞いています…' : busy ? '返事を考えています…' : 'あなたと話せるのを楽しみにしています。'}</p><button className="text-button" onClick={() => speaking ? stopSpeech() : speakReply(sceneInfo.intro)}>{speaking ? <><Square size={13}/> 読み上げを止める</> : <><Volume2 size={15}/> あいさつを聞く</>}</button></div><button className="avatar-edit-button" aria-label="アバター設定" aria-expanded={avatarSettings} aria-controls="avatar-settings" onClick={() => { stopSpeech(); setAvatarSettings(v => !v); }}><Pencil size={13}/><span>アバター設定</span></button></div>
     <div className="chat-heading"><div className="chat-partner"><Avatar avatar={avatar} className="partner-character"/><div><strong>{avatarName}と英会話</strong><small><span className="online-dot"/>{sceneInfo.role} ・ {mode === 'ai' ? 'AIと自由に会話' : 'ガイド会話'}</small></div></div><div className="chat-tools"><button className={`translation-toggle ${showTranslation ? 'active' : ''}`} onClick={() => setShowTranslation(v => !v)} aria-pressed={showTranslation}>日本語訳</button><button className="icon-button" title="会話をはじめから" aria-label="会話をはじめから" disabled={busy} onClick={() => changeScene(scene)}><RotateCcw size={17}/></button></div></div>
     <div className="chat-messages" ref={scrollRef} aria-live="polite" role="log" aria-label="会話履歴"><div className="chat-date">今日の小さなチャレンジ</div>{bubble(sceneInfo.intro, sceneInfo.translation, '', 'intro')}{messages.map((m, i) => m.role === 'assistant' ? bubble(m.content, m.translation, m.tip, i) : <div className="user-row" key={i}><div className="bubble">{m.content}</div><span className="user-avatar">YOU</span></div>)}{busy && <div className="typing"><span/><span/><span/><small>返事を考えています</small></div>}</div>
     <div className="chat-input-area">{error && <p role="alert" className="chat-error">{error}</p>}<div className="suggestions"><span>こんなふうに言ってみよう</span><div>{(suggestions || []).map(s => <button key={s} disabled={busy} onClick={() => send(s)}>{s}<ArrowRight size={13}/></button>)}</div></div><form className="chat-form" onSubmit={e => { e.preventDefault(); send(); }}><button type="button" className={`icon-button mic-button ${listening ? 'listening' : ''}`} disabled={busy} onClick={dictate} aria-label={listening ? '音声入力を停止' : '音声で入力'}>{listening ? <MicOff size={20}/> : <Mic size={20}/>}</button><input ref={inputRef} aria-label="英語のメッセージ" value={draft} onChange={e => setDraft(e.target.value)} placeholder={listening ? '聞いています…' : '英語で話しかけてみよう…'} maxLength={500} disabled={busy}/><button className="send-button" aria-label="メッセージを送信" disabled={busy || !draft.trim()}><Send size={19}/></button></form><p className="input-caption"><Headphones size={12}/> 音声入力は対応ブラウザで利用できます。返事の「聞く」で発音も練習。</p></div>

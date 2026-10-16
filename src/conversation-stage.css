@@ -1,0 +1,59 @@
+/* A face-to-face layout keeps the speaking partner beside the conversation. */
+.conversation-grid{grid-template-columns:minmax(0,1fr)}
+.conversation-grid>.right-column{display:none}
+.conversation-panel.has-avatar{display:grid;grid-template-columns:minmax(240px,.86fr) minmax(0,1.14fr);grid-template-rows:auto auto minmax(310px,1fr) auto}
+.has-avatar>.scene-tabs{grid-column:1/-1;grid-row:1;padding:14px 20px}
+.has-avatar>.avatar-stage{grid-column:1;grid-row:2/5;min-height:630px;padding:66px 26px 35px;border-bottom:0;border-right:1px solid #e9e0f1;display:flex;flex-direction:column;justify-content:center;gap:25px}
+.has-avatar>.chat-heading{grid-column:2;grid-row:2;padding:20px}
+.has-avatar>.chat-messages{grid-column:2;grid-row:3;height:340px;min-height:310px;padding:20px}
+.has-avatar>.chat-input-area{grid-column:2;grid-row:4}
+.avatar-spotlight{width:100%;max-width:310px}
+.stage-character{width:100%;height:auto;aspect-ratio:1;border:5px solid #fff;border-radius:30px;box-shadow:0 16px 45px #7a589326,0 0 0 9px #ffffff45;overflow:hidden}
+.avatar-stage.is-speaking .stage-character{animation:none;box-shadow:0 16px 45px #7a589326,0 0 0 9px #d9c5ee7a}
+.photo-performance{display:block;position:relative;width:100%;height:100%;overflow:hidden;animation:portrait-breathe 7s ease-in-out infinite;transform:scale(1.025)}
+.photo-performance>img,.portrait-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.portrait-canvas{opacity:0;transition:opacity .25s}
+.portrait-canvas.ready{opacity:1}
+.is-speaking .photo-performance{animation:portrait-talk 3.8s ease-in-out infinite}
+.stage-character>img{animation:portrait-breathe 7s ease-in-out infinite}
+.stage-character.is-speaking>img{animation:portrait-talk 3.8s ease-in-out infinite}
+.avatar-introduction{text-align:center;padding:6px 0;max-width:100%}
+.avatar-introduction h2{font-size:28px;margin-top:8px;max-width:100%}
+.avatar-introduction>.eyebrow{font-size:8px;letter-spacing:1.7px;display:block}
+.avatar-status{font-size:10px;margin:10px 0;max-width:100%;line-height:1.9}
+.avatar-introduction>.text-button{margin:12px auto 0;font-size:11px;padding:10px 15px;min-height:38px;border:1px solid #e1d3ef;border-radius:9px;background:#ffffffb3}
+.voice-waves{bottom:-12px;width:57px;height:29px;gap:4px;border-width:4px}
+.voice-waves>i{height:6px;width:3px}
+.avatar-edit-button{top:16px;right:16px;padding:8px 10px;font-size:9px}
+@keyframes portrait-breathe{0%,100%{transform:scale(1.025) translateY(0) rotate(-.15deg)}50%{transform:scale(1.04) translateY(-1px) rotate(.1deg)}}
+@keyframes portrait-talk{0%,100%{transform:scale(1.035) rotate(-.3deg) translateY(0)}30%{transform:scale(1.04) rotate(.2deg) translateY(1px)}65%{transform:scale(1.03) rotate(-.15deg) translateY(-1px)}}
+@media(max-width:1050px) and (min-width:651px){.conversation-panel.has-avatar{grid-template-columns:minmax(190px,.8fr) minmax(0,1.2fr)}.has-avatar>.avatar-stage{padding:55px 18px 25px;min-height:600px}.stage-character{border-radius:24px;border-width:4px}.avatar-status{font-size:9px}.avatar-introduction h2{font-size:25px}.has-avatar>.chat-messages{padding:16px 12px}.has-avatar>.chat-heading{padding:16px 12px}.avatar-edit-button{font-size:7px;padding:7px}}
+@media(max-width:650px){
+  .conversation-main{padding-top:14px}
+  .conversation-main>.page-heading{margin-bottom:14px}
+  .conversation-main>.page-heading .eyebrow{display:none}
+  .conversation-main>.page-heading h1{font-size:19px}
+  .conversation-main>.page-heading p{font-size:8px;margin-top:5px;line-height:1.6}
+  .conversation-grid .conversation-panel.has-avatar{display:flex;flex-direction:column;height:calc(100dvh - 230px);min-height:540px}
+  .has-avatar>.scene-tabs{padding:9px 7px}
+  .has-avatar>.avatar-stage{flex-direction:row;justify-content:flex-start;gap:19px;padding:17px 18px;min-height:174px;border-right:0;border-bottom:1px solid #ece4f5}
+  .avatar-spotlight{width:137px;max-width:42%;flex-shrink:0}
+  .stage-character{width:100%;height:auto;aspect-ratio:1;border-radius:20px;border-width:3px;box-shadow:0 7px 20px #7a589326,0 0 0 5px #ffffff45}
+  .avatar-stage.is-speaking .stage-character{box-shadow:0 7px 20px #7a589326,0 0 0 5px #d9c5ee7a}
+  .avatar-introduction{text-align:left;min-width:0;padding-top:13px}
+  .avatar-introduction>.eyebrow{font-size:5px;letter-spacing:.8px}
+  .avatar-introduction h2{font-size:22px;margin-top:6px}
+  .avatar-status{font-size:7px;line-height:1.9;margin:7px 0}
+  .avatar-introduction>.text-button{font-size:8px;margin:7px 0 0;padding:7px 9px;min-height:30px;gap:4px}
+  .avatar-edit-button{top:8px;right:8px;padding:6px}
+  .voice-waves{width:44px;height:24px;bottom:-9px;gap:3px;border-width:3px}
+  .voice-waves>i{width:2px}
+  .has-avatar>.chat-heading{padding:8px 12px;min-height:46px}
+  .conversation-grid .has-avatar>.chat-messages{height:auto;min-height:100px;flex:1;padding:12px}
+  .has-avatar>.chat-input-area{padding:11px 12px}
+  .has-avatar .suggestions>span{margin-bottom:6px;font-size:7px}
+  .has-avatar .suggestions>div{gap:5px;margin-bottom:10px}
+  .has-avatar .suggestions button{font-size:8px;padding:6px 7px}
+  .has-avatar .input-caption{font-size:6px;margin-top:7px}
+}
+@media(prefers-reduced-motion:reduce){.photo-performance,.is-speaking .photo-performance{animation:none!important;transform:none}.portrait-canvas{transition:none}}
