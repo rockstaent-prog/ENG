@@ -1,0 +1,119 @@
+const {chromium}=require('playwright');
+const http=require('node:http');
+const fs=require('node:fs');
+const path=require('node:path');
+const assert=require('node:assert/strict');
+
+(async()=>{
+  const root=path.resolve('dist-mobile');
+  assert.ok(fs.existsSync(path.join(root,'sw.js')),'Run npm run build:mobile first');
+  const types={'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
+  const server=http.createServer((req,res)=>{
+    const pathname=new URL(req.url,'http://localhost').pathname;
+    if(!pathname.startsWith('/ENG/')){res.writeHead(404);return res.end();}
+    const file=path.resolve(root,decodeURIComponent(pathname.slice(5))||'index.html');
+    if(!file.startsWith(root+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile()){res.writeHead(404);return res.end();}
+    res.setHeader('Content-Type',types[path.extname(file)]||'application/octet-stream');
+    res.setHeader('Cache-Control','no-cache');fs.createReadStream(file).pipe(res);
+  });
+  let browser;
+  const errors=[],failed=[],api=[];
+  try{
+    await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+    const origin=`http://127.0.0.1:${server.address().port}`, url=origin+'/ENG/';
+    browser=await chromium.launch({executablePath:process.env.BROWSER_EXECUTABLE||['/usr/bin/chromium','/usr/bin/chromium-browser'].find(p=>fs.existsSync(p)),args:['--no-sandbox']});
+    const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,locale:'ja-JP',userAgent:'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 Chrome/131.0.0.0 Mobile Safari/537.36'});
+    const page=await context.newPage();
+    page.on('pageerror',e=>errors.push(e.message));
+    page.on('response',r=>{if(r.status()>=400)failed.push(r.url());});
+    page.on('request',r=>{if(r.url().includes('/api/'))api.push(r.url());});
+    await page.goto(url);
+    await page.getByRole('heading',{name:'英語で、話してみよう。'}).waitFor({state:'attached'});
+    await page.waitForFunction(()=>navigator.serviceWorker.controller!==null);
+    const session=await context.newCDPSession(page);
+    const manifest=await session.send('Page.getAppManifest');
+    assert.deepEqual(manifest.errors,[]);assert.equal(manifest.url,url+'manifest.webmanifest');
+    const data=JSON.parse(manifest.data);assert.equal(data.display,'standalone');assert.equal(data.start_url,'./?screen=talk');
+    const icons=await page.evaluate(async()=>{const manifest=await (await fetch('./manifest.webmanifest')).json();return Promise.all(manifest.icons.map(icon=>new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve([image.naturalWidth,image.naturalHeight]);image.onerror=reject;image.src=new URL(icon.src,document.baseURI).href;})));});
+    assert.deepEqual(icons,[[192,192],[512,512]]);
+    await page.getByRole('button',{name:'携帯に保存',exact:true}).click();
+    await page.getByText('この端末でオフライン起動の準備ができました',{exact:false}).waitFor();
+    await page.getByRole('button',{name:'iPhone',exact:true}).click();
+    await page.getByRole('dialog').getByText('Safari',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'Android',exact:true}).click();
+    await page.getByRole('dialog').getByText('Chrome',{exact:true}).waitFor();
+    await page.evaluate(()=>{
+      const event=new Event('beforeinstallprompt',{cancelable:true});
+      event.prompt=()=>{window.installPromptCalls=(window.installPromptCalls||0)+1;return Promise.resolve();};
+      event.userChoice=Promise.resolve({outcome:'accepted'});window.dispatchEvent(event);
+    });
+    await page.getByRole('button',{name:'携帯に保存する',exact:true}).click();
+    await page.getByRole('dialog').waitFor({state:'hidden'});
+    assert.equal(await page.evaluate(()=>window.installPromptCalls),1);
+    await page.evaluate(()=>window.dispatchEvent(new Event('appinstalled')));
+    await page.getByRole('button',{name:'携帯への保存を確認',exact:true}).waitFor();
+    console.log('PASS: manifest, icons, subpath scope, iPhone/Android instructions and install prompt lifecycle (prompt simulated)');
+
+    await page.getByRole('button',{name:'アバターを大きく見る',exact:true}).click();
+    const face=page.getByRole('dialog');
+    await face.locator('.portrait-canvas[data-ready="true"]').waitFor();
+    const box=await face.locator('.focused-character').boundingBox();assert.ok(box.width>=260);
+    await page.getByRole('button',{name:'アバターの拡大を閉じる',exact:true}).click();
+    await page.getByRole('button',{name:'アバター設定',exact:true}).click();
+    await page.getByLabel('返事を自動で読み上げる').uncheck();
+    const tallPhoto=await page.evaluate(()=>{
+      const canvas=document.createElement('canvas');canvas.width=200;canvas.height=600;
+      const ctx=canvas.getContext('2d');ctx.fillStyle='#d491a7';ctx.fillRect(0,0,200,300);ctx.fillStyle='#7e8ac3';ctx.fillRect(0,300,200,300);
+      return canvas.toDataURL('image/png').split(',')[1];
+    });
+    await page.getByLabel('好きな画像を設定',{exact:true}).setInputFiles({name:'tall-photo.png',mimeType:'image/png',buffer:Buffer.from(tallPhoto,'base64')});
+    await page.getByLabel('画像の上下位置',{exact:true}).waitFor();
+    const dimensions=await page.locator('.avatar-settings-preview .custom-photo img').evaluate(async image=>{await image.decode();return [image.naturalWidth,image.naturalHeight];});
+    assert.deepEqual(dimensions,[200,600],'whole tall photo is preserved for later framing');
+    await page.getByLabel('画像の上下位置',{exact:true}).fill('20');
+    const top=await page.locator('.avatar-settings-preview .custom-photo').screenshot();
+    await page.getByLabel('画像の上下位置',{exact:true}).fill('80');
+    const bottom=await page.locator('.avatar-settings-preview .custom-photo').screenshot();
+    assert.notDeepEqual(top,bottom,'moving the photo changes the visible crop');
+    await page.getByLabel('画像の上下位置',{exact:true}).fill('20');
+    await page.getByLabel('画像の拡大率',{exact:true}).fill('1.4');
+    await page.getByLabel('相棒の名前').fill('Nora');
+    await page.getByRole('button',{name:'アバター設定を閉じる'}).click();
+    await page.getByLabel('英語のメッセージ').fill('Coffee, please.');
+    await page.getByRole('button',{name:'メッセージを送信'}).click();
+    await page.getByText('One coffee, coming right up! Would you like it hot or iced?',{exact:true}).waitFor();
+    console.log('PASS: mobile avatar enlargement, live framing, custom photo, name and conversation');
+
+    await context.setOffline(true);
+    await page.close();
+    const offline=await context.newPage();offline.on('pageerror',e=>errors.push(e.message));
+    await offline.goto(url+'?screen=talk');
+    await offline.getByText('Noraと英会話',{exact:true}).waitFor();
+    await offline.locator('.stage-character .custom-photo img').evaluate(image=>image.decode());
+    const framing=await offline.locator('.stage-character .custom-photo img').evaluate(image=>({position:image.style.objectPosition,scale:image.style.transform}));
+    assert.deepEqual(framing,{position:'50% 20%',scale:'scale(1.4)'});
+    await offline.getByRole('button',{name:'旅先で道案内',exact:false}).click();
+    await offline.getByLabel('英語のメッセージ').fill('Where is the station?');
+    await offline.getByRole('button',{name:'メッセージを送信'}).click();
+    await offline.getByText(/The station is two blocks from here/).waitFor();
+    const nav=offline.getByRole('navigation',{name:'モバイルメニュー'});
+    await nav.getByRole('button',{name:'学習する',exact:true}).click();
+    await offline.getByRole('button',{name:'レッスンをはじめる',exact:true}).click();
+    await offline.getByRole('dialog').getByRole('button',{name:'2 Hello',exact:true}).click();
+    await offline.getByRole('button',{name:'答え合わせ'}).click();
+    await offline.getByRole('heading',{name:'そのとおり！',exact:false}).waitFor();
+    await offline.getByRole('button',{name:'レッスンを閉じる'}).click();
+    await offline.getByRole('button',{name:'終了する',exact:true}).click();
+    await nav.getByRole('button',{name:'会話する',exact:true}).click();
+    // The default talking portrait and its expression sheet are cached too.
+    await offline.getByRole('button',{name:'アバター設定',exact:true}).click();
+    await offline.getByRole('button',{name:'エマ',exact:false}).click();
+    await offline.getByRole('button',{name:'アバター設定を閉じる'}).click();
+    await offline.locator('.portrait-canvas[data-ready="true"]').waitFor();
+    assert.equal(await offline.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    fs.mkdirSync('test-results',{recursive:true});
+    await offline.screenshot({path:'test-results/mobile-offline.png',fullPage:true});
+    assert.deepEqual(errors,[]);assert.deepEqual(failed,[]);assert.deepEqual(api,[]);
+    console.log('PASS: close/reopen while offline, custom avatar framing/name persistence, cached talking portrait, lessons and guided conversation without API requests');
+  }finally{await browser?.close();if(server.listening)await new Promise(resolve=>server.close(resolve));}
+})().catch(error=>{console.error(error);process.exitCode=1;});

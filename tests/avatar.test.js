@@ -10,7 +10,7 @@ test('fresh or unavailable avatar storage uses the supplied portrait', () => {
 
 test('avatar settings restore image, name and voice preferences', () => {
   const settings = {kind:'custom',name:'  Emma  ',image:'data:image/png;base64,YQ==',autoRead:false,voiceURI:'English Voice'};
-  assert.deepEqual(readAvatar({getItem: () => JSON.stringify(settings)}), {...settings,name:'Emma'});
+  assert.deepEqual(readAvatar({getItem: () => JSON.stringify(settings)}), {...settings,name:'Emma',imageX:50,imageY:35,imageZoom:1});
 });
 
 test('invalid image URLs and oversized data cannot become saved avatars', () => {
@@ -18,4 +18,11 @@ test('invalid image URLs and oversized data cannot become saved avatars', () => 
     const restored = readAvatar({getItem: () => JSON.stringify({kind:'custom',name:'My friend',image})});
     assert.equal(restored.image,''); assert.equal(restored.kind,defaultAvatar.kind);
   }
+});
+
+test('saved photo framing is restored and invalid framing is constrained', () => {
+  const restored = value => readAvatar({getItem: () => JSON.stringify(value)});
+  assert.deepEqual([restored({imageX:12,imageY:21,imageZoom:1.5}).imageX,restored({imageX:12,imageY:21,imageZoom:1.5}).imageY,restored({imageX:12,imageY:21,imageZoom:1.5}).imageZoom],[12,21,1.5]);
+  const invalid = restored({imageX:-20,imageY:120,imageZoom:20});
+  assert.deepEqual([invalid.imageX,invalid.imageY,invalid.imageZoom],[0,100,2]);
 });

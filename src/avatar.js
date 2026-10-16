@@ -5,7 +5,7 @@ export const avatarPresets = [
   { id: 'bear', name: 'ベア', label: 'くま', color: '#c4aa91' },
   { id: 'robot', name: 'ロボ', label: 'ロボット', color: '#93bbb5' },
 ];
-export const defaultAvatar = { kind: 'portrait', name: 'Emma', image: '', autoRead: true, voiceURI: '' };
+export const defaultAvatar = { kind: 'portrait', name: 'Emma', image: '', autoRead: true, voiceURI: '', imageX: 50, imageY: 35, imageZoom: 1 };
 export const avatarStorageKey = 'komorebi-avatar';
 export function readAvatar(storage) {
   try {
@@ -18,6 +18,9 @@ export function readAvatar(storage) {
       name: typeof value.name === 'string' && value.name.trim() ? value.name.trim().slice(0, 24) : defaultAvatar.name,
       autoRead: typeof value.autoRead === 'boolean' ? value.autoRead : true,
       voiceURI: typeof value.voiceURI === 'string' ? value.voiceURI.slice(0, 400) : '',
+      imageX: Number.isFinite(value.imageX) ? Math.max(0, Math.min(100, value.imageX)) : 50,
+      imageY: Number.isFinite(value.imageY) ? Math.max(0, Math.min(100, value.imageY)) : 35,
+      imageZoom: Number.isFinite(value.imageZoom) ? Math.max(1, Math.min(2, value.imageZoom)) : 1,
     };
   } catch { return { ...defaultAvatar }; }
 }
@@ -31,11 +34,13 @@ export async function prepareAvatarImage(file) {
     image.src = url;
     try { await image.decode(); } catch { throw new Error('画像を読み込めませんでした。別の画像をお試しください。'); }
     const canvas = document.createElement('canvas');
-    canvas.width = 256; canvas.height = 256;
+    const ratio = Math.min(1, 768 / Math.max(image.naturalWidth, image.naturalHeight));
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * ratio));
     const context = canvas.getContext('2d');
     if (!context) throw new Error('このブラウザでは画像を設定できません。用意されたアバターを選べます。');
-    const size = Math.min(image.naturalWidth, image.naturalHeight);
-    context.drawImage(image, (image.naturalWidth - size) / 2, (image.naturalHeight - size) / 2, size, size, 0, 0, 256, 256);
+    // Preserve the whole photo so its face can be repositioned after saving.
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
     const result = canvas.toDataURL('image/webp', 0.85);
     if (result.length > 500000) throw new Error('画像が大きすぎます。別の画像をお試しください。');
     return result;

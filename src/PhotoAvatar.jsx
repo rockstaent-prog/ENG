@@ -24,7 +24,7 @@ function featurePatch(image, tile, feature) {
   return result;
 }
 
-export default function PhotoAvatar({ image, speaking, cue }) {
+export default function PhotoAvatar({ image, speaking, cue, onError }) {
   const canvasRef = useRef(null), latest = useRef({ speaking, cue });
   const [ready, setReady] = useState(false);
   latest.current = { speaking, cue };
@@ -71,5 +71,5 @@ export default function PhotoAvatar({ image, speaking, cue }) {
     imageSheet.src = spriteURL;
     return () => { disposed = true; cancelAnimationFrame(request); imageSheet.onload = null; };
   }, []);
-  return <span className="photo-performance"><img src={image} alt=""/><canvas ref={canvasRef} width={SIZE} height={SIZE} className={`portrait-canvas ${ready ? 'ready' : ''}`} aria-hidden="true" data-ready={ready}/></span>;
+  return <span className="photo-performance"><img src={image} alt="" onError={onError}/><canvas ref={canvasRef} width={SIZE} height={SIZE} className={`portrait-canvas ${ready ? 'ready' : ''}`} aria-hidden="true" data-ready={ready}/></span>;
 }

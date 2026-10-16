@@ -20,6 +20,7 @@ for (const [tag, href] of [...html.matchAll(/<link\b[^>]*\brel="stylesheet"[^>]*
   html = html.replace(tag, () => `<style>${css}</style>`);
 }
 html = html.replace(/<link\b[^>]*\brel="modulepreload"[^>]*>/g, '');
+html = html.replace(/^[ \t]*<link\b[^>]*\brel="(?:manifest|apple-touch-icon)"[^>]*>[ \t]*\r?\n?/gm, '');
 html = html.replace(/<title>[^<]+<\/title>/, '<title>こもれび — 英語学習アプリ お試し版</title>');
 if (/<script\b[^>]*\bsrc=|<link\b[^>]*\brel="stylesheet"/i.test(html)) throw new Error('Standalone app still depends on external scripts or styles');
 await mkdir('preview', {recursive: true});

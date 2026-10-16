@@ -7,6 +7,8 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "build:preview": "vite build --mode static --outDir dist-preview",
+    "build:mobile:site": "vite build --mode mobile --outDir dist-mobile",
+    "build:mobile": "npm run build:mobile:site && node scripts/package-mobile.mjs",
     "build:standalone": "vite build --mode standalone --outDir dist-standalone && node scripts/package-standalone.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --test tests/*.test.js",
@@ -14,7 +16,8 @@
     "test:regressions": "node tests/regressions.cjs",
     "test:preview": "node tests/static-preview.cjs",
     "test:standalone": "node tests/standalone.cjs",
-    "test:mobile": "node tests/mobile.cjs"
+    "test:mobile": "node tests/mobile.cjs",
+    "test:pwa": "node tests/pwa.cjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

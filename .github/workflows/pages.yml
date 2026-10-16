@@ -32,10 +32,12 @@ jobs:
       - run: npm run test:mobile
       - run: npm run test:regressions
       - run: npm run test:preview
+      - run: npm run build:mobile
+      - run: npm run test:pwa
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist-preview
+          path: dist-mobile
   deploy:
     needs: build
     runs-on: ubuntu-latest
