@@ -1,4 +1,4 @@
-import { selectEnglishVoice } from './voices.js';
+import { selectEnglishVoice, englishVoices } from './voices.js';
 
 let cancelPending = null;
 let activeUtterance = null;
@@ -17,14 +17,19 @@ export function speak(text, options = {}) {
   if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return 'unsupported';
   cancelSpeech();
   const synth = window.speechSynthesis;
-  const choose = () => selectEnglishVoice(synth.getVoices(), options.voiceURI, options.femaleOnly);
+  const choose = () => {
+    const voices=synth.getVoices();
+    const local=options.locale ? englishVoices(voices,options.femaleOnly).filter(voice=>voice.lang.replace('_','-').toLowerCase()===options.locale.toLowerCase()) : [];
+    return selectEnglishVoice(local.length?local:voices,options.voiceURI,options.femaleOnly);
+  };
   const play = voice => {
     try {
       // Keep the utterance alive until the engine finishes. Some browsers drop
       // events when their JavaScript utterance is garbage-collected mid-speech.
       const utterance = new window.SpeechSynthesisUtterance(text);
       activeUtterance = utterance;
-      utterance.lang = voice?.lang || 'en-US'; utterance.rate = 0.9;
+      utterance.lang = voice?.lang || 'en-US';
+      utterance.rate = Number.isFinite(options.rate) ? Math.max(0.5,Math.min(1.2,options.rate)) : 0.9;
       if (voice) utterance.voice = voice;
       utterance.onstart = options.onStart;
       utterance.onend = event => { if (activeUtterance === utterance) activeUtterance = null; options.onEnd?.(event); };

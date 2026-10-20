@@ -62,6 +62,11 @@ const assert = require('node:assert/strict');
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     const input=await page.getByLabel('英語のメッセージ').boundingBox(), menu=await nav.boundingBox();
     assert.ok(input.y+input.height<menu.y);
+    await page.goto(`http://127.0.0.1:${server.address().port}/ENG/?screen=pronunciation`);
+    await page.getByRole('heading',{name:'英語の音を、口から覚えよう。',exact:true}).waitFor();
+    await page.getByRole('button',{name:'R と L を言い分けるを練習する',exact:true}).click();
+    await page.getByText('right',{exact:true}).waitFor();
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     assert.deepEqual(errors,[]);assert.deepEqual(failedResponses,[]);assert.deepEqual(apiRequests,[]);
     console.log('PASS: static /ENG/ hosting displays app and avatar, supports multi-turn conversation, naming, lessons, vocabulary, statistics and mobile layout without any API server or failed asset requests');
   } finally {await browser?.close();await new Promise(resolve=>server.close(resolve));}

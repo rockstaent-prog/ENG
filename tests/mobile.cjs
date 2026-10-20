@@ -30,7 +30,7 @@ const assert=require('node:assert/strict');
       page.on('pageerror',e=>errors.push(e.message));
       await page.goto('http://127.0.0.1:4176');
       const nav=page.getByRole('navigation',{name:'モバイルメニュー'});
-      for (const label of ['学習する','単語帳','学習の記録']) {
+      for (const label of ['学習する','発音','単語帳','学習の記録']) {
         await nav.getByRole('button',{name:label,exact:true}).click();
         assert.equal(await page.evaluate(()=>Math.max(document.body.scrollWidth,document.documentElement.scrollWidth)>innerWidth+1),false,`${width}x${height}: ${label} fits the phone width`);
       }
@@ -82,7 +82,7 @@ const assert=require('node:assert/strict');
         await page.getByText('One coffee, coming right up! Would you like it hot or iced?',{exact:true}).waitFor();
         await page.screenshot({path:'test-results/phone-fit.png',fullPage:true});
       }
-      console.log(`PASS: ${width}x${height} all four pages fit, visible avatar/input, readable text and usable settings`);
+      console.log(`PASS: ${width}x${height} all five pages fit, visible avatar/input, readable text and usable settings`);
       await page.close();
     }
     assert.deepEqual(errors,[]);

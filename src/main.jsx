@@ -12,6 +12,7 @@ import { speak, cancelSpeech } from './speech';
 import useMobileViewport from './useMobileViewport';
 import InstallApp from './InstallApp';
 import AvatarFocus from './AvatarFocus';
+import Pronunciation from './Pronunciation';
 import './style.css';
 import './avatar.css';
 import './conversation-stage.css';
@@ -21,13 +22,16 @@ import './face-to-face.css';
 
 const icons = { wave: Hand, coffee: Coffee, sun: Sun, plane: Plane, chat: MessageCircle, bag: ShoppingBag };
 const staticPreview = import.meta.env.VITE_STATIC_PREVIEW === 'true';
-const navigation = [{ id: 'learn', label: '学習する', icon: House }, { id: 'talk', label: '会話する', icon: MessageCircle }, { id: 'words', label: '単語帳', icon: Layers }, { id: 'stats', label: '学習の記録', icon: BarChart3 }];
+const navigation = [{ id: 'learn', label: '学習する', icon: House }, { id: 'talk', label: '会話する', icon: MessageCircle }, { id: 'pronunciation', label: '発音', icon: Volume2 }, { id: 'words', label: '単語帳', icon: Layers }, { id: 'stats', label: '学習の記録', icon: BarChart3 }];
 function Mascot({ small = false }) {
   return <svg className={`mascot ${small ? 'small' : ''}`} viewBox="0 0 240 240" fill="none" aria-hidden="true"><ellipse cx="120" cy="214" rx="63" ry="9" fill="#DAD3ED"/><path d="M63 103 48 38q-2-13 10-8l55 37M134 67l46-38q12-8 12 7l-7 73" fill="#E6AD7E"/><path d="m61 45 14 50 23-21M177 44l-30 31 25 22" fill="#F6CEAD"/><path d="M55 123c0-51 29-65 65-65s69 17 69 66c0 40-16 84-69 84S55 164 55 123Z" fill="#F2BF94"/><path d="M59 124c11-19 40-24 61-2 22-22 52-17 66 2-1 44-22 73-66 73s-61-31-61-73Z" fill="#FFF5E6"/><ellipse cx="90" cy="129" rx="5" ry="7" fill="#49404D"/><ellipse cx="150" cy="129" rx="5" ry="7" fill="#49404D"/><ellipse cx="76" cy="145" rx="10" ry="6" fill="#EFA6A0"/><ellipse cx="163" cy="145" rx="10" ry="6" fill="#EFA6A0"/><path d="m113 146 7 5 7-5M120 152v4m-10 0q10 12 20 0" stroke="#49404D" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/><path d="m74 185-14 20m105-20 14 20" stroke="#E6AD7E" strokeWidth="15" strokeLinecap="round"/><path d="M91 190q29-14 59 0v32q-29-14-59 0v-32Z" fill="#8D78C2"/><path d="M120 185v31" stroke="#B3A1DC" strokeWidth="3"/><path d="m101 199 10-2m18 0 10 2m-38 8 10-2m18 0 10 2" stroke="#E7DFF8" strokeWidth="2" strokeLinecap="round"/><path d="m210 85 4 10 10 4-10 4-4 10-4-10-10-4 10-4Z" fill="#9B87CE"/><path d="m25 120 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z" fill="#D7AF6F"/></svg>;
 }
 function App() {
   useMobileViewport();
-  const [page, setPage] = useState(() => import.meta.env.MODE === 'standalone' || import.meta.env.MODE === 'mobile' || new URLSearchParams(location.search).get('screen') === 'talk' ? 'talk' : 'learn');
+  const [page, setPage] = useState(() => {
+    const requested = new URLSearchParams(location.search).get('screen');
+    return navigation.some(item => item.id === requested) ? requested : import.meta.env.MODE === 'standalone' || import.meta.env.MODE === 'mobile' ? 'talk' : 'learn';
+  });
   const [progress, setProgress] = useState(() => readProgress({ getItem: key => window.localStorage.getItem(key) }));
   const [session, setSession] = useState(null);
   const [storageError, setStorageError] = useState(false);
@@ -49,8 +53,8 @@ function App() {
     <div className={`app-shell ${page === 'talk' ? 'conversation-shell' : ''}`}><header className="topbar"><div className="breadcrumb">マイコース <ChevronRight size={14}/><strong>英語 / はじめの一歩</strong></div><InstallApp/><div className="top-stats"><span className="language"><span>🇺🇸</span> English</span><span title="連続学習日数"><Flame size={19} className="orange"/><b>{streak(progress.history)}</b><small>日</small></span><span title="獲得したXP"><Zap size={19} className="purple"/><b>{progress.xp}</b><small>XP</small></span></div></header>
       <main className={page === 'talk' ? 'conversation-main' : undefined}>
         {storageError && <div className="notice" role="alert">このブラウザでは学習記録を保存できません。現在の画面では引き続き学習できます。</div>}
-        <div className="page-heading"><div><div className="eyebrow">{page === 'learn' ? 'A LITTLE PRACTICE, A BIG WORLD.' : page === 'talk' ? 'LET’S HAVE A CONVERSATION.' : page === 'words' ? 'WORDS THAT OPEN DOORS.' : 'EVERY LITTLE STEP COUNTS.'}</div><h1>{page === 'learn' ? '今日も、ひとつ成長しよう。' : page === 'talk' ? '英語で、話してみよう。' : page === 'words' ? 'ことばを、あなたのものに。' : '積み重ねた、小さな一歩。'}</h1><p>{page === 'learn' ? '1日5分。あなたのペースで、英語のある毎日へ。' : page === 'talk' ? '間違えても大丈夫。まずは、ひとことから。' : page === 'words' ? '声に出して、くり返して。覚えたことばが世界を広げる。' : '昨日の自分より、少しだけ遠くへ。'}</p></div><div className="date-chip"><Sun size={16}/> 今日もいい学びを</div></div>
-        <div className={`main-grid ${page === 'talk' ? 'conversation-grid' : ''}`}><div className="primary-column">
+        <div className="page-heading"><div><div className="eyebrow">{page === 'learn' ? 'A LITTLE PRACTICE, A BIG WORLD.' : page === 'talk' ? 'LET’S HAVE A CONVERSATION.' : page === 'pronunciation' ? 'LISTEN, TRY, AND SAY IT.' : page === 'words' ? 'WORDS THAT OPEN DOORS.' : 'EVERY LITTLE STEP COUNTS.'}</div><h1>{page === 'learn' ? '今日も、ひとつ成長しよう。' : page === 'talk' ? '英語で、話してみよう。' : page === 'pronunciation' ? '英語の音を、口から覚えよう。' : page === 'words' ? 'ことばを、あなたのものに。' : '積み重ねた、小さな一歩。'}</h1><p>{page === 'learn' ? '1日5分。あなたのペースで、英語のある毎日へ。' : page === 'talk' ? '間違えても大丈夫。まずは、ひとことから。' : page === 'pronunciation' ? '口と舌のコツを知って、お手本をまねしてみよう。' : page === 'words' ? '声に出して、くり返して。覚えたことばが世界を広げる。' : '昨日の自分より、少しだけ遠くへ。'}</p></div><div className="date-chip"><Sun size={16}/> 今日もいい学びを</div></div>
+        <div className={`main-grid ${page === 'talk' ? 'conversation-grid' : page === 'pronunciation' ? 'pronunciation-grid' : ''}`}><div className="primary-column">
           {page === 'learn' && <>
             <section className="hero"><div className="hero-copy"><span className="pill"><span/> LET’S KEEP GROWING</span><h2>「わかった！」を、<br/>今日もひとつ。</h2><p>新しいことばと出会う、小さな冒険。<br/>きょうのレッスンをはじめよう。</p><button className="button primary" onClick={() => start(next)}>レッスンをはじめる <ArrowRight size={17}/></button><span className="hero-time">約3分 ・ 5問のミニレッスン</span></div><div className="hero-art"><span className="art-note">You’ve got this!</span><Mascot/><span className="art-dot one"/><span className="art-dot two"/></div></section>
             <div className="section-heading"><div><h2>学びの道のり <span className="section-tag">はじめの一歩</span></h2><p>日常で使える英語を、ひとつずつ。</p></div><span className="muted small-text">{progress.completed.length} / {lessons.length} 完了</span></div>
@@ -62,6 +66,7 @@ function App() {
             <section className="conversation-banner"><div className="banner-icon"><MessageCircle size={26}/></div><div><span className="eyebrow">MAKE IT A CONVERSATION</span><h3>覚えた英語を、使ってみよう。</h3><p>気軽な英会話で「話せた！」を体験。</p></div><button className="button secondary" onClick={() => setPage('talk')}>会話する <ArrowRight size={16}/></button></section>
           </>}
           {page === 'talk' && <Conversation/>}
+          {page === 'pronunciation' && <Pronunciation/>}
           {page === 'words' && <Words progress={progress}/>}
           {page === 'stats' && <Stats progress={progress}/>}
         </div><aside className="right-column">

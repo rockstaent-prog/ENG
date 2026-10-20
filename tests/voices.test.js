@@ -67,3 +67,16 @@ test('canceling speech detaches callbacks from the canceled utterance',t=>{
   cancelSpeech();
   assert.equal(utterance.onstart,null);assert.equal(utterance.onend,null);
 });
+
+test('pronunciation playback uses a slower rate and US female voice when available',t=>{
+  const uk={voiceURI:'sonia',name:'Microsoft Sonia Online (Natural)',lang:'en-GB'};
+  const state=engine(t,[male,uk,female]);
+  speak('right',{femaleOnly:true,locale:'en-US',voiceURI:'sonia',rate:0.65});
+  assert.equal(state.played[0].rate,0.65);assert.equal(state.played[0].voice,female);
+  speak('light',{femaleOnly:true});assert.equal(state.played[1].rate,0.9,'existing speech keeps its rate');
+  speak('right',{femaleOnly:true,rate:Infinity});assert.equal(state.played[2].rate,0.9);
+  speak('right',{femaleOnly:true,rate:-2});assert.equal(state.played[3].rate,0.5);
+  state.setVoices([male,uk]);
+  speak('right',{femaleOnly:true,locale:'en-US',rate:0.65});
+  assert.equal(state.played[4].voice,uk,'available female English voice remains usable without a US voice');
+});

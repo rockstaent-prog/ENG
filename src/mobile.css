@@ -5,7 +5,7 @@
   .app-shell{margin-left:0}
   .app-shell main:not(.conversation-main){padding-bottom:calc(90px + var(--safe-bottom))}
   .mobile-nav{display:flex;position:fixed;z-index:20;bottom:0;left:0;right:0;height:var(--mobile-nav-space);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + var(--safe-bottom)) max(8px,env(safe-area-inset-left,0px));justify-content:space-around;background:#fffffff5;border-top:1px solid #ece9f0;backdrop-filter:blur(16px)}
-  .mobile-nav button{min-height:48px;min-width:60px;padding:4px 10px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;font-size:10px;color:#a295b0;position:relative}
+  .mobile-nav button{flex:1;min-height:48px;min-width:0;padding:4px 2px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;font-size:10px;color:#a295b0;position:relative}
   .mobile-nav button.active{color:#8066b8}
   .mobile-nav button.active:after{bottom:0}
   .conversation-shell{height:var(--app-viewport-height,100dvh);display:flex;flex-direction:column;min-height:0}

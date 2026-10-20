@@ -115,6 +115,15 @@ const assert=require('node:assert/strict');
     await offline.getByRole('button',{name:'メッセージを送信'}).click();
     await offline.getByText(/The station is two blocks from here/).waitFor();
     const nav=offline.getByRole('navigation',{name:'モバイルメニュー'});
+    await nav.getByRole('button',{name:'発音',exact:true}).click();
+    await offline.getByRole('button',{name:'R と L を言い分けるを練習する',exact:true}).click();
+    await offline.getByText('R：舌先を上あごにつけず、舌を少し後ろへ引きます。唇を軽く丸め、声を出します。',{exact:true}).waitFor();
+    for(let index=0;index<3;index++){
+      await offline.getByRole('checkbox').check();
+      await offline.getByRole('button',{name:index===2?'練習を終える':'次の練習へ',exact:true}).click();
+    }
+    await offline.getByText('1 / 6 レッスン練習済み',{exact:true}).waitFor();
+    assert.deepEqual(await offline.evaluate(()=>JSON.parse(localStorage.getItem('komorebi-pronunciation'))),['rl']);
     await nav.getByRole('button',{name:'学習する',exact:true}).click();
     await offline.getByRole('button',{name:'レッスンをはじめる',exact:true}).click();
     await offline.getByRole('dialog').getByRole('button',{name:'2 Hello',exact:true}).click();
@@ -139,6 +148,6 @@ const assert=require('node:assert/strict');
     fs.mkdirSync('test-results',{recursive:true});
     await offline.screenshot({path:'test-results/mobile-offline.png',fullPage:true});
     assert.deepEqual(errors,[]);assert.deepEqual(failed,[]);assert.deepEqual(api,[]);
-    console.log('PASS: close/reopen while offline, switch multiple saved photos, custom avatar framing/name persistence, cached talking portrait, lessons and guided conversation without API requests');
+    console.log('PASS: close/reopen while offline, pronunciation teaching and completion, switch multiple saved photos, custom avatar framing/name persistence, cached talking portrait, lessons and guided conversation without API requests');
   }finally{await browser?.close();if(server.listening)await new Promise(resolve=>server.close(resolve));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

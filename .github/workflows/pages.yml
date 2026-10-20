@@ -31,6 +31,7 @@ jobs:
       - run: npm run test:e2e
       - run: npm run test:mobile
       - run: npm run test:avatars
+      - run: npm run test:pronunciation
       - run: npm run test:regressions
       - run: npm run test:preview
       - run: npm run build:mobile
