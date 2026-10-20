@@ -17,6 +17,7 @@
     "test:preview": "node tests/static-preview.cjs",
     "test:standalone": "node tests/standalone.cjs",
     "test:mobile": "node tests/mobile.cjs",
+    "test:avatars": "node tests/avatar-library.cjs",
     "test:pwa": "node tests/pwa.cjs"
   },
   "dependencies": {

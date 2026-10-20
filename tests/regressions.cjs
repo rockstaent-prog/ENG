@@ -98,6 +98,7 @@ const http = require('node:http');
     assert.equal(await mic.evaluate(()=>window.lastRecognition.aborted),true);
     await mic.getByRole('button',{name:'音声で入力',exact:true}).click();
     await mic.evaluate(()=>window.lastRecognition.onresult({results:[[{transcript:'a'.repeat(700)}]]}));
+    await mic.waitForFunction(()=>document.querySelector('.chat-form input').value.length===500);
     assert.equal((await mic.getByLabel('英語のメッセージ').inputValue()).length,500);
     await mic.close();
     console.log('PASS: late microphone results cannot overwrite a new scene and recognized text respects the message limit (microphone simulated)');

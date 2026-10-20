@@ -6,6 +6,7 @@ import { scenes } from './conversation';
 import { browserReply, requestChatReply } from './chat-client';
 import Avatar from './Avatar';
 import { avatarPresets, avatarStorageKey, readAvatar, prepareAvatarImage } from './avatar';
+import { readAvatarLibrary, keepAvatar, writeAvatarLibrary } from './avatar-library';
 import { englishVoices } from './voices';
 import { speak, cancelSpeech } from './speech';
 import useMobileViewport from './useMobileViewport';
@@ -104,6 +105,9 @@ function Lesson({ lesson, onClose, onFinish }) {
 function Conversation() {
   const [scene, setScene] = useState('cafe'), [messages, setMessages] = useState([]), [draft, setDraft] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [mode, setMode] = useState('guided'), [listening, setListening] = useState(false), [showTranslation, setShowTranslation] = useState(true);
   const [avatar, setAvatar] = useState(() => readAvatar({ getItem: key => window.localStorage.getItem(key) }));
+  const [savedAvatars, setSavedAvatars] = useState(() => readAvatarLibrary({getItem:key => window.localStorage.getItem(key)}));
+  const savedAvatarsRef = useRef(savedAvatars);
+  const [libraryError, setLibraryError] = useState(''), [deletingAvatar, setDeletingAvatar] = useState(null);
   const [avatarSettings, setAvatarSettings] = useState(false), [speaking, setSpeaking] = useState(false), [voices, setVoices] = useState([]), [avatarError, setAvatarError] = useState(''), [uploading, setUploading] = useState(false), [avatarSaveError, setAvatarSaveError] = useState(false);
   const [speechCue, setSpeechCue] = useState(null);
   const [preparingVoice, setPreparingVoice] = useState(false);
@@ -132,6 +136,13 @@ function Conversation() {
   }, []);
   useEffect(() => { try { localStorage.setItem(avatarStorageKey, JSON.stringify(avatar)); setAvatarSaveError(false); } catch { setAvatarSaveError(true); } }, [avatar]);
   useEffect(() => {
+    if (avatar.kind !== 'custom') return;
+    try {
+      const next = keepAvatar(savedAvatarsRef.current, avatar, crypto.randomUUID());
+      if (JSON.stringify(next) !== JSON.stringify(savedAvatarsRef.current)) storeAvatars(next);
+    } catch (e) { setLibraryError(e.message); }
+  }, [avatar]);
+  useEffect(() => {
     const log = scrollRef.current, last = log?.lastElementChild;
     if (last) log.scrollTo({ top: log.scrollTop + last.getBoundingClientRect().top - log.getBoundingClientRect().top - 10, behavior: 'auto' });
   }, [messages, busy]);
@@ -154,9 +165,34 @@ function Conversation() {
   async function uploadAvatar(event) {
     const file = event.target.files?.[0]; event.target.value = ''; if (!file) return;
     const id = ++uploadRef.current; setUploading(true); setAvatarError('');
-    try { const image = await prepareAvatarImage(file); if (uploadRef.current === id) setAvatar(p => ({ ...p, kind: 'custom', image, imageX:50, imageY:35, imageZoom:1, photoMode:'whole' })); }
+    try {
+      const image = await prepareAvatarImage(file);
+      if (uploadRef.current === id) {
+        const existing = savedAvatarsRef.current.find(entry => entry.avatar.image === image);
+        const nextAvatar = existing?.avatar || {...avatarRef.current, kind:'custom', name:`相棒 ${savedAvatarsRef.current.length + 1}`, image, imageX:50, imageY:35, imageZoom:1, photoMode:'whole'};
+        const next = keepAvatar(savedAvatarsRef.current, nextAvatar, crypto.randomUUID());
+        if (storeAvatars(next)) { stopSpeech(); stopListening(); setListening(false); setAvatar(nextAvatar); }
+      }
+    }
     catch (e) { if (uploadRef.current === id) setAvatarError(e.message); }
     finally { if (uploadRef.current === id) setUploading(false); }
+  }
+  function storeAvatars(next) {
+    try {
+      writeAvatarLibrary(window.localStorage, next);
+      savedAvatarsRef.current = next; setSavedAvatars(next); setLibraryError(''); return true;
+    } catch (e) { setLibraryError(e.message); return false; }
+  }
+  function chooseSavedAvatar(entry) {
+    stopSpeech(); stopListening(); setListening(false); setDeletingAvatar(null); setAvatarError(''); setAvatar({...entry.avatar});
+  }
+  function removeSavedAvatar(entry) {
+    if (!storeAvatars(savedAvatarsRef.current.filter(item => item.id !== entry.id))) return;
+    if (avatar.image === entry.avatar.image && avatar.kind === 'custom') {
+      stopSpeech(); stopListening(); setListening(false);
+      setAvatar(v => ({...v,kind:'portrait',name:'Emma',image:'',photoMode:'whole'}));
+    }
+    setDeletingAvatar(null);
   }
   function stopListening() {
     const rec = recognition.current; recognition.current = null;
@@ -197,8 +233,14 @@ function Conversation() {
     {avatarSaveError && <p className="notice" role="alert">アバター設定を保存できませんでした。この画面では引き続き使えます。</p>}
     {avatarSettings && <section className="avatar-settings" id="avatar-settings" aria-label="アバター設定"><div className="avatar-settings-heading"><div><span className="eyebrow">YOUR CONVERSATION PARTNER</span><h2>いっしょに話す、あなただけの相棒。</h2></div><button className="icon-button" aria-label="アバター設定を閉じる" onClick={() => setAvatarSettings(false)}><X size={18}/></button></div>
       <fieldset className="avatar-choices"><legend>アバターを選ぶ</legend><div>{avatarPresets.map(p => <button key={p.id} disabled={uploading} aria-pressed={avatar.kind === p.id} className={avatar.kind === p.id ? 'selected' : ''} onClick={() => { stopSpeech(); setAvatar(v => ({...v,kind:p.id,name:p.name,image:''})); setAvatarError(''); }}><Avatar avatar={{kind:p.id,name:p.name}}/><span>{p.label}</span>{avatar.kind === p.id && <Check size={12}/>}</button>)}</div></fieldset>
+      <section className="saved-avatars" aria-label="追加したアバター"><h3>追加したアバター <span>{savedAvatars.length} / 8</span></h3><p>写真を追加して、話す相手を選べます。名前・声・写真の位置もそれぞれ保存されます。</p>
+        {savedAvatars.length > 0 && <div className="saved-avatar-grid">{savedAvatars.map(entry => <div className="saved-avatar-card" key={entry.id}><button className="saved-avatar-select" disabled={uploading} aria-label={`${entry.avatar.name}と話す`} aria-pressed={avatar.kind === 'custom' && avatar.image === entry.avatar.image} onClick={() => chooseSavedAvatar(entry)}><Avatar avatar={entry.avatar}/><span>{entry.avatar.name}</span></button><button className="saved-avatar-remove" disabled={uploading} aria-label={`${entry.avatar.name}を削除`} onClick={() => setDeletingAvatar(entry)}>削除</button></div>)}</div>}
+        {deletingAvatar && <div className="avatar-delete-confirm" role="group" aria-label="アバターの削除確認"><p>「{deletingAvatar.avatar.name}」を削除しますか？元の写真は端末に残ります。</p><button onClick={() => setDeletingAvatar(null)}>やめる</button><button onClick={() => removeSavedAvatar(deletingAvatar)}>削除する</button></div>}
+        <label className={`button secondary upload-button ${uploading ? 'uploading' : ''}`}><Upload size={15}/>{uploading ? '追加しています…' : 'アバターを追加'}<input className="visually-hidden" type="file" aria-label="アバターを追加" accept="image/png,image/jpeg,image/webp" onChange={uploadAvatar} disabled={uploading}/></label>
+        <p>PNG・JPEG・WebP / 5MBまで。写真はこの端末のブラウザに保存されます。</p>
+        {libraryError && <p className="chat-error" role="alert">{libraryError}</p>}
+      </section>
       <div className="avatar-settings-preview"><Avatar avatar={avatar} className="settings-character"/><div><strong>{avatarName}</strong><p>この姿で会話します</p></div></div>
-      <div className="avatar-upload-row"><label className={`button secondary upload-button ${uploading ? 'uploading' : ''}`}><Upload size={15}/>{uploading ? '画像を準備しています…' : '好きな画像を設定'}<input className="visually-hidden" type="file" aria-label="好きな画像を設定" accept="image/png,image/jpeg,image/webp" onChange={uploadAvatar} disabled={uploading}/></label><p>PNG・JPEG・WebP / 5MBまで<br/>画像はこの端末に保存されます。</p></div>
       {avatar.kind === 'custom' && <div className="avatar-frame-controls"><div className="photo-mode-buttons"><button aria-pressed={avatar.photoMode !== 'crop'} onClick={() => setAvatar(v => ({...v,photoMode:'whole'}))}>写真全体を映す</button><button aria-pressed={avatar.photoMode === 'crop'} onClick={() => setAvatar(v => ({...v,photoMode:'crop'}))}>顔を拡大する</button></div><p>{avatar.photoMode === 'crop' ? '顔が見える位置に調整できます' : '元の構図のまま、上半身まで切らずに表示します。'}</p><div hidden={avatar.photoMode !== 'crop'}><label>上下の位置<input aria-label="画像の上下位置" type="range" min="0" max="100" value={avatar.imageY ?? 35} onChange={e => setAvatar(v => ({...v,imageY:Number(e.target.value)}))}/></label><label>左右の位置<input aria-label="画像の左右位置" type="range" min="0" max="100" value={avatar.imageX ?? 50} onChange={e => setAvatar(v => ({...v,imageX:Number(e.target.value)}))}/></label><label>顔の大きさ<input aria-label="画像の拡大率" type="range" min="1" max="2" step="0.05" value={avatar.imageZoom || 1} onChange={e => setAvatar(v => ({...v,imageZoom:Number(e.target.value)}))}/></label></div></div>}
       {avatarError && <p role="alert" className="chat-error">{avatarError}</p>}
       <div className="avatar-fields"><label>相棒の名前<input value={avatar.name} maxLength={24} placeholder="Emma" onChange={e => setAvatar(v => ({...v,name:e.target.value}))}/></label><label>話す声（女性）<select value={selectedVoiceURI} onChange={e => { stopSpeech(); setAvatar(v => ({...v,voiceURI:e.target.value})); }}><option value="">女性の声を自動で選ぶ</option>{femaleVoices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</select></label></div>

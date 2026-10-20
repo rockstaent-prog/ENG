@@ -9,6 +9,25 @@
 .original-photo{position:relative;animation:none!important}
 .original-photo>img,.original-photo-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain!important;object-position:center!important;transform:none!important}
 .original-photo.ready>img{opacity:0}
+.original-photo:not(.ready)>.original-photo-canvas{opacity:0}
+.original-photo.crop-photo>img{object-fit:cover!important;object-position:var(--photo-x) var(--photo-y)!important;transform:scale(var(--photo-zoom))!important}
+/* The mesh already moves the photo; do not rock the entire rectangular frame. */
+.face-to-face .stage-character,.face-to-face .stage-character.is-speaking,.avatar-focus-dialog .focused-character{animation:none!important}
+.saved-avatars{margin:20px 0;padding:16px 0;border-top:1px solid #eee5f5;border-bottom:1px solid #eee5f5}
+.saved-avatars h3{font-size:15px;color:#76588d;margin:0 0 8px}
+.saved-avatars h3 span{font-size:12px;font-weight:400;margin-left:6px}
+.saved-avatars>p{font-size:12px;line-height:1.7;color:#937da2;margin:0 0 12px}
+.saved-avatar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:10px;margin-bottom:14px}
+.saved-avatar-card{min-width:0;border:1px solid #e7dcee;border-radius:12px;overflow:hidden;background:#fcfaff}
+.saved-avatar-select{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%;padding:12px 6px;min-height:110px;border:2px solid transparent;border-radius:11px}
+.saved-avatar-select[aria-pressed=true]{border-color:#ae8dca;background:#f0e6fa}
+.saved-avatar-select .character-avatar{width:56px;height:56px}
+.saved-avatar-select>span:last-child{font-size:13px;max-width:100%;overflow-wrap:anywhere}
+.saved-avatar-remove{width:100%;min-height:44px;font-size:12px;color:#957889;border-top:1px solid #eee5f4}
+.saved-avatars>.upload-button{min-height:44px;font-size:14px}
+.avatar-delete-confirm{padding:12px;background:#f6effa;border-radius:10px;margin-bottom:12px}
+.avatar-delete-confirm p{font-size:13px;line-height:1.7;margin:0 0 8px}
+.avatar-delete-confirm button{min-height:44px;padding:8px 14px;margin-right:8px;border:1px solid #d9c6e8;border-radius:8px;background:#fff}
 .photo-mode-buttons{display:flex;gap:7px;margin-bottom:12px}
 .photo-mode-buttons button{flex:1;min-height:44px;border:1px solid #e3d7ee;border-radius:9px;padding:8px 6px;font-size:12px;color:#8d719f;background:#fff}
 .photo-mode-buttons button[aria-pressed=true]{background:#eee4f8;border-color:#b99bd3;color:#71508b}

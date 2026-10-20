@@ -8,21 +8,28 @@ const smoothstep = (low, high, value) => {
 export function avatarPose(time, activity = 0, listening = 0, wordAge = 10, reduced = false) {
   if (reduced) return { turn: 0, nod: 0, sway: 0, breath: 0 };
   const t = time / 1000;
-  const emphasis = wordAge >= 0 && wordAge < 0.65 ? Math.sin(wordAge / 0.65 * Math.PI) : 0;
+  const emphasis = wordAge >= 0 && wordAge < 0.9 ? Math.sin(wordAge / 0.9 * Math.PI) ** 2 : 0;
+  // Overlapping slow rhythms avoid the metronomic side-to-side loop. Speech
+  // accents stay small, with a zero-velocity start and finish at each word.
   return {
-    turn: Math.sin(t * 0.83) * (0.002 + activity * 0.022) + listening * 0.009,
-    nod: Math.sin(t * 1.7) * (0.0008 + activity * 0.0055) + emphasis * activity * 0.007,
-    sway: Math.sin(t * 0.64 + 0.6) * (0.001 + activity * 0.006),
-    breath: Math.sin(t * 1.35) * (0.0018 + activity * 0.001),
+    turn: (Math.sin(t * 0.61) * 0.72 + Math.sin(t * 1.07 + 0.8) * 0.28) * (0.0018 + activity * 0.011) + listening * 0.005,
+    nod: (Math.sin(t * 0.89 + 0.4) * 0.7 + Math.sin(t * 1.49) * 0.3) * (0.0006 + activity * 0.0025) + emphasis * activity * 0.0024,
+    sway: (Math.sin(t * 0.43 + 0.6) * 0.8 + Math.sin(t * 0.73) * 0.2) * (0.0008 + activity * 0.0028),
+    breath: (Math.sin(t * 1.24) * 0.85 + Math.sin(t * 0.57 + 0.3) * 0.15) * 0.0016,
   };
 }
 
-export function portraitPoint(x, y, pose, upperBody = false) {
+export function easeActivity(current, target, seconds) {
+  return current + (target - current) * (1 - Math.exp(-Math.max(0, seconds) / 0.32));
+}
+
+export function portraitPoint(x, y, pose, upperBody = false, aspect = 1) {
   const head = 1 - smoothstep(upperBody ? 0.3 : 0.56, upperBody ? 0.54 : 0.86, y);
   const shoulders = smoothstep(upperBody ? 0.45 : 0.63, 0.96, y);
-  const angle = pose.turn * head;
-  const dx = x - 0.51, dy = y - (upperBody ? 0.43 : 0.77);
-  const rotateX = dx * Math.cos(angle) - dy * Math.sin(angle) - dx;
+  // Limit rotation for very tall/wide photos while rotating in pixel space.
+  const angle = pose.turn * head * Math.min(1, aspect, 1 / aspect);
+  const dx = (x - 0.51) * aspect, dy = y - (upperBody ? 0.43 : 0.77);
+  const rotateX = (dx * Math.cos(angle) - dy * Math.sin(angle) - dx) / aspect;
   const rotateY = dx * Math.sin(angle) + dy * Math.cos(angle) - dy;
   return {
     x: x + rotateX + pose.sway * (0.3 + shoulders) + (x - 0.5) * pose.breath * shoulders,
@@ -42,7 +49,7 @@ export function portraitMesh(columns = 6, rows = 16) {
 
 export function drawPortrait(ctx, texture, mesh, pose, size, {height = size, scale = 1.045, upperBody = false} = {}) {
   const destination = mesh.points.map(point => {
-    const moved = portraitPoint(point.x, point.y, pose, upperBody);
+    const moved = portraitPoint(point.x, point.y, pose, upperBody, size / height);
     return {x: (0.5 + (moved.x - 0.5) * scale) * size, y: (0.5 + (moved.y - 0.5) * scale) * height};
   });
   for (const ids of mesh.triangles) {

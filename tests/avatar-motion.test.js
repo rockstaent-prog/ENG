@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { avatarPose, portraitPoint, portraitMesh } from '../src/avatar-motion.js';
+import { avatarPose, portraitPoint, portraitMesh, easeActivity } from '../src/avatar-motion.js';
 
 test('head and shoulders move around different pivots while staying inside safe margins', () => {
   const mesh = portraitMesh();
@@ -38,10 +38,27 @@ test('reduced motion fixes head and body position and speaking has more head mov
 test('whole-photo motion keeps every image corner inside the frame', () => {
   for (let time=0;time<15000;time+=200) {
     const pose=avatarPose(time,1,1,0.3);
-    for (const point of portraitMesh().points) {
-      const moved=portraitPoint(point.x,point.y,pose,true);
+    for (const aspect of [0.2, 1/3, 1, 2, 4]) for (const point of portraitMesh().points) {
+      const moved=portraitPoint(point.x,point.y,pose,true,aspect);
       const x=0.5+(moved.x-0.5)*0.94, y=0.5+(moved.y-0.5)*0.94;
       assert.ok(x>=0 && x<=1 && y>=0 && y<=1);
     }
+  }
+});
+
+test('speech starts and stops gradually with the same response at different frame rates', () => {
+  let slow=0,fast=0;
+  for(let i=0;i<10;i++) slow=easeActivity(slow,1,0.1);
+  for(let i=0;i<50;i++) fast=easeActivity(fast,1,0.02);
+  assert.ok(Math.abs(slow-fast)<1e-12);
+  assert.ok(easeActivity(0,1,0.04)<0.13,'no sudden jump on the first speaking frame');
+  assert.ok(easeActivity(1,0,0.04)>0.87,'no sudden stop on the last speaking frame');
+  for(let i=0;i<50;i++) fast=easeActivity(fast,0,0.04);
+  assert.ok(fast<0.003,'returns to rest');
+  for(let time=0;time<20000;time+=40){
+    const a=avatarPose(time,1,1,0.3),b=avatarPose(time+40,1,1,0.34);
+    assert.ok(Math.abs(a.turn-b.turn)<0.001);
+    assert.ok(Math.abs(a.nod-b.nod)<0.001);
+    assert.ok(Math.abs(a.sway-b.sway)<0.001);
   }
 });

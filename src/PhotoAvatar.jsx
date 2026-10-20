@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { speechPosition } from './speech-motion';
-import { avatarPose, portraitMesh, drawPortrait } from './avatar-motion';
+import { avatarPose, portraitMesh, drawPortrait, easeActivity } from './avatar-motion';
 
 const spriteURL = typeof __AVATAR_SPRITE__ !== 'undefined' ? __AVATAR_SPRITE__ : './avatars/emma-speaking.png';
 const SIZE = 512;
@@ -53,8 +53,8 @@ export default function PhotoAvatar({ image, speaking, listening = false, cue, o
         const delta = Math.min(0.1, (now - previousTime) / 1000);
         previousTime = now;
         const state = latest.current;
-        activity += (Number(state.speaking) - activity) * Math.min(1, delta * 7);
-        attention += (Number(state.listening) - attention) * Math.min(1, delta * 5);
+        activity = easeActivity(activity, Number(state.speaking), delta);
+        attention = easeActivity(attention, Number(state.listening), delta);
         const mouth = state.speaking ? (reduced.matches ? 1 : speechPosition(state.cue, now).shape) : 0;
         if (mouth !== target) { from = target; target = mouth; transitionAt = now; }
         const blend = Math.min(1, (now - transitionAt) / 75);

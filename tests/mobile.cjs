@@ -54,7 +54,7 @@ const assert=require('node:assert/strict');
       if(width===320 || width===390 || width===844){
         const tall=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=200;canvas.height=600;canvas.getContext('2d').fillRect(0,0,200,600);return canvas.toDataURL('image/png').split(',')[1];});
         await page.getByRole('button',{name:'アバター設定',exact:true}).click();
-        await page.getByLabel('好きな画像を設定',{exact:true}).setInputFiles({name:'upper-body.png',mimeType:'image/png',buffer:Buffer.from(tall,'base64')});
+        await page.getByLabel('アバターを追加',{exact:true}).setInputFiles({name:'upper-body.png',mimeType:'image/png',buffer:Buffer.from(tall,'base64')});
         await page.getByRole('button',{name:'写真全体を映す',exact:true}).waitFor();
         await page.getByRole('button',{name:'アバター設定を閉じる'}).click();
         await page.locator('.original-photo-canvas[data-ready="true"]').waitFor();
