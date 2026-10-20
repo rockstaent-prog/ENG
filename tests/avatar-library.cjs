@@ -35,7 +35,10 @@ const fs = require('node:fs');
       await page.getByRole('button',{name:'アバター設定',exact:true}).click();
       const collection=page.getByRole('region',{name:'追加したアバター',exact:true});
       await collection.getByRole('button',{name:'Noraと話す',exact:true}).waitFor();
-      const upload = async index => page.getByLabel('アバターを追加',{exact:true}).setInputFiles({name:`partner-${index}.png`,mimeType:'image/png',buffer:Buffer.from(photos[index].split(',')[1],'base64')});
+      const upload = async (index, succeeds=true) => {
+        await page.getByLabel('アバターを追加',{exact:true}).setInputFiles({name:`partner-${index}.png`,mimeType:'image/png',buffer:Buffer.from(photos[index].split(',')[1],'base64')});
+        if(succeeds)await page.waitForFunction(image=>JSON.parse(localStorage.getItem('komorebi-avatar')).image===image&&!document.querySelector('.saved-avatars input[type=file]').disabled,photos[index]);
+      };
       await upload(1);
       await page.getByLabel('相棒の名前').fill('Sara');
       await page.getByLabel('話す声（女性）').selectOption('jenny');
@@ -91,7 +94,7 @@ const fs = require('node:fs');
         window.originalSetItem=Storage.prototype.setItem;
         Storage.prototype.setItem=function(key,value){if(key==='komorebi-avatar-library')throw new DOMException('Quota exceeded','QuotaExceededError');return window.originalSetItem.call(this,key,value);};
       });
-      await upload(2);
+      await upload(2,false);
       await page.getByRole('alert').getByText(/アバターを保存できませんでした/).waitFor();
       assert.equal(await collection.locator('.saved-avatar-select').count(),2);
       assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('komorebi-avatar')).name),'Sara');
@@ -107,4 +110,8 @@ const fs = require('node:fs');
     }
     assert.deepEqual(errors,[]);
   } finally {await browser?.close();await server.close();}
-})().catch(error=>{console.error(error);process.exitCode=1;});
+})().catch(error=>{
+  console.error(error);
+  if(process.env.GITHUB_ACTIONS==='true')console.error(`::error::${String(error.stack||error).replace(/%/g,'%25').replace(/\r/g,'%0D').replace(/\n/g,'%0A')}`);
+  process.exitCode=1;
+});

@@ -116,4 +116,8 @@ const fs=require('node:fs');
     }
     assert.deepEqual(errors,[]);
   }finally{await browser?.close();await server.close();}
-})().catch(error=>{console.error(error);process.exitCode=1;});
+})().catch(error=>{
+  console.error(error);
+  if(process.env.GITHUB_ACTIONS==='true')console.error(`::error::${String(error.stack||error).replace(/%/g,'%25').replace(/\r/g,'%0D').replace(/\n/g,'%0A')}`);
+  process.exitCode=1;
+});
