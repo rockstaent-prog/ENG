@@ -20,6 +20,7 @@ const http = require('node:http');
     browser = await chromium.launch({executablePath,args:['--no-sandbox']});
     async function newPage() {
       const result = await browser.newPage({viewport:{width:1280,height:1000},locale:'ja-JP'});
+      await result.addInitScript(()=>{window.SpeechRecognition=class{start(){window.downloadMic=this;}abort(){}};});
       result.on('pageerror',e=>errors.push(e.message));
       result.on('request',request=>{
         if (/^https?:/.test(request.url()) && request.url() !== appURL) network.push(request.url());
@@ -55,8 +56,8 @@ const http = require('node:http');
     await page.getByLabel('返事を自動で読み上げる').uncheck();
     await page.getByLabel('相棒の名前').fill('Nora');
     await page.getByRole('button',{name:'アバター設定を閉じる'}).click();
-    await page.getByLabel('英語のメッセージ').fill("I'd like tea, please.");
-    await page.getByRole('button',{name:'メッセージを送信'}).click();
+    await page.getByRole('button',{name:'音声で入力',exact:true}).click();
+    await page.evaluate(()=>{const result=[{transcript:"I'd like tea, please."}];result.isFinal=true;window.downloadMic.onresult({resultIndex:0,results:[result]});});
     await page.getByText('One tea, coming right up! Would you like it hot or iced?',{exact:true}).waitFor();
     await page.getByLabel('英語のメッセージ').fill('Iced, please.');
     await page.getByRole('button',{name:'メッセージを送信'}).click();

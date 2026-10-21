@@ -19,6 +19,7 @@
     "test:mobile": "node tests/mobile.cjs",
     "test:avatars": "node tests/avatar-library.cjs",
     "test:pronunciation": "node tests/pronunciation.cjs",
+    "test:voice-chat": "node tests/voice-chat.cjs",
     "test:pwa": "node tests/pwa.cjs"
   },
   "dependencies": {
