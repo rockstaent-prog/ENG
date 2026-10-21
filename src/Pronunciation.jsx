@@ -6,8 +6,8 @@ import { speak, cancelSpeech } from './speech';
 import usePronunciationRecording from './usePronunciationRecording';
 import './pronunciation.css';
 
-export default function Pronunciation() {
-  const [selected,setSelected]=useState(null),[index,setIndex]=useState(0),[completed,setCompleted]=useState(()=>readPronunciationProgress({getItem:key=>localStorage.getItem(key)}));
+export default function Pronunciation({initialLesson=null}) {
+  const [selected,setSelected]=useState(()=>pronunciationLessons.some(lesson=>lesson.id===initialLesson)?initialLesson:null),[index,setIndex]=useState(0),[completed,setCompleted]=useState(()=>readPronunciationProgress({getItem:key=>localStorage.getItem(key)}));
   const [storageError,setStorageError]=useState(false),[audioError,setAudioError]=useState(''),[playback,setPlayback]=useState(''),[checked,setChecked]=useState(false);
   const speechSession=useRef(0), ownAudio=useRef(null), heading=useRef(null), exampleHeading=useRef(null);
   const lesson=pronunciationLessons.find(item=>item.id===selected),example=lesson?.examples[index];

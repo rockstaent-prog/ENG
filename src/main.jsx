@@ -13,6 +13,9 @@ import useMobileViewport from './useMobileViewport';
 import InstallApp from './InstallApp';
 import AvatarFocus from './AvatarFocus';
 import Pronunciation from './Pronunciation';
+import ConversationFeedback from './ConversationFeedback';
+import PronunciationDialog from './PronunciationDialog';
+import { conversationFeedback } from './conversation-feedback';
 import './style.css';
 import './avatar.css';
 import './conversation-stage.css';
@@ -118,6 +121,7 @@ function Conversation() {
   const [preparingVoice, setPreparingVoice] = useState(false);
   const [avatarFocus, setAvatarFocus] = useState(false);
   const [historyView, setHistoryView] = useState(false);
+  const [pronunciationLesson,setPronunciationLesson] = useState(null);
   const [browserOnly, setBrowserOnly] = useState(staticPreview), [canPractice, setCanPractice] = useState(false);
   const speechId = useRef(0), avatarRef = useRef(avatar), uploadRef = useRef(0);
   avatarRef.current = avatar;
@@ -152,13 +156,14 @@ function Conversation() {
     if (last) log.scrollTo({ top: log.scrollTop + last.getBoundingClientRect().top - log.getBoundingClientRect().top - 10, behavior: 'auto' });
   }, [messages, busy]);
   function stopSpeech() { speechId.current++; cancelSpeech(); setSpeaking(false); setSpeechCue(null); setPreparingVoice(false); }
-  function speakReply(content) {
+  function speakReply(content, {rate=0.9} = {}) {
     stopListening(); setListening(false);
     const id = ++speechId.current;
     setSpeaking(false); setPreparingVoice(false); setError('');
     const result = speak(content, {
       voiceURI: avatarRef.current.voiceURI,
       femaleOnly: true,
+      rate,
       onStart: () => { if (speechId.current === id) { setHistoryView(false); setPreparingVoice(false); setSpeaking(true); setSpeechCue({text:content,index:0,at:performance.now(),boundary:false}); } },
       onBoundary: event => { if (speechId.current === id && event.name !== 'sentence') setSpeechCue({text:content,index:event.charIndex || 0,length:event.charLength || 0,at:performance.now(),boundary:true}); },
       onEnd: () => { if (speechId.current === id) { setPreparingVoice(false); setSpeaking(false); setSpeechCue(null); } },
@@ -205,7 +210,7 @@ function Conversation() {
     if (rec) { rec.onresult = null; rec.onend = null; rec.onerror = null; try { rec.abort(); } catch {} }
   }
   function changeScene(value) { if (busy) return; stopSpeech(); stopListening(); setListening(false); setScene(value); setMessages([]); setDraft(''); setError(''); setCanPractice(false); }
-  async function send(value = draft, practice = false, {focusInput = true} = {}) {
+  async function send(value = draft, practice = false, {focusInput = true, voice=false} = {}) {
     const content = value.trim(); if (!content || sending.current) return;
     sending.current = true;
     const userMessage = { role: 'user', content };
@@ -217,7 +222,7 @@ function Conversation() {
       const payload = { scene, partnerName: avatarName, messages: [{ role: 'assistant', content: sceneInfo.intro }, ...prior.map(({role, content}) => ({role, content}))].slice(-22) };
       const data = browserOnly || practice ? browserReply(payload) : await requestChatReply(payload, { signal: request.current.signal });
       if (data.browserOnly) setBrowserOnly(true);
-      setMessages(v => [...v, { role: 'assistant', content: data.reply, ...data }]); setMode(data.mode);
+      setMessages(v => [...v, { role: 'assistant', content: data.reply, ...data, feedback:conversationFeedback(content,scene),voice }]); setMode(data.mode);
       if (avatarRef.current.autoRead) speakReply(data.reply);
     } catch (e) { if (e.name !== 'AbortError') { setMessages(prior.slice(0, -1)); setDraft(content); setError(e.message); setCanPractice(true); } }
     finally { sending.current = false; setBusy(false); if (focusInput) inputRef.current?.focus(); }
@@ -236,7 +241,7 @@ function Conversation() {
       if (!finals.length) return;
       const content = finals.map(result => result[0]?.transcript || '').join(' ').trim().slice(0, 500);
       stopListening(); setListening(false);
-      if (content) send(content, false, {focusInput:false});
+      if (content) send(content, false, {focusInput:false,voice:true});
       else setError('音声を聞き取れませんでした。もう一度話すか、文字で入力してください。');
     };
     rec.onend = () => { if (recognition.current === rec) { recognition.current = null; setListening(false); } };
@@ -245,6 +250,7 @@ function Conversation() {
   }
   const bubble = (content, translation, tip, key) => <div className="assistant-row" key={key}><Avatar avatar={avatar} className="message-character"/><div className="assistant-message"><div className="bubble"><p>{content}</p>{showTranslation && <p className="translation">{translation}</p>}<button className="text-button" aria-label="返事を読み上げる" onClick={() => speakReply(content)}><Volume2 size={15}/> 聞く</button></div>{tip && <div className="chat-tip"><Sparkles size={14}/>{tip}</div>}</div></div>;
   return <div className={`conversation-workspace ${avatarSettings ? 'settings-open' : ''}`}>
+    {pronunciationLesson&&<PronunciationDialog lessonId={pronunciationLesson} onClose={()=>setPronunciationLesson(null)}/>}
     {avatarFocus && <AvatarFocus avatar={avatar} speaking={speaking} preparing={preparingVoice} cue={speechCue} onClose={() => setAvatarFocus(false)} onSpeak={() => speaking || preparingVoice ? stopSpeech() : speakReply(sceneInfo.intro)}/>}
     {avatarSaveError && <p className="notice" role="alert">アバター設定を保存できませんでした。この画面では引き続き使えます。</p>}
     {avatarSettings && <section className="avatar-settings" id="avatar-settings" aria-label="アバター設定"><div className="avatar-settings-heading"><div><span className="eyebrow">YOUR CONVERSATION PARTNER</span><h2>いっしょに話す、あなただけの相棒。</h2></div><button className="icon-button" aria-label="アバター設定を閉じる" onClick={() => setAvatarSettings(false)}><X size={18}/></button></div>
@@ -266,7 +272,7 @@ function Conversation() {
     <section className={`conversation-panel has-avatar face-to-face ${avatar.kind === 'custom' && avatar.photoMode !== 'crop' ? 'whole-photo-conversation' : ''} ${historyView ? 'history-view' : ''}`}><div className="scene-tabs" aria-label="会話の場面">{Object.entries(scenes).map(([key, s]) => <button key={key} disabled={busy} className={key === scene ? 'active' : ''} onClick={() => changeScene(key)}><span>{s.icon}</span>{s.title}</button>)}</div>
     <div className={`avatar-stage ${speaking ? 'is-speaking' : ''} ${preparingVoice ? 'is-preparing' : ''} ${listening ? 'is-listening' : ''}`}><div className="avatar-spotlight"><button className="avatar-focus-button" aria-label="アバターを大きく見る" onClick={() => setAvatarFocus(true)}><Avatar avatar={avatar} className="stage-character" speaking={speaking} listening={listening} cue={speechCue} animated/><span>大きく見る</span></button><span className="voice-waves" aria-hidden="true"><i/><i/><i/><i/><i/></span></div><div className="avatar-introduction"><span className="eyebrow">YOUR ENGLISH BUDDY</span><h2>{avatarName}</h2><p role="status" className="avatar-status">{preparingVoice ? '女性の声を探しています…' : speaking ? '話しています…' : listening ? '聞いています。話し終わると自動送信します。' : busy ? '返事を考えています…' : 'あなたと話せるのを楽しみにしています。'}</p><button className="text-button" onClick={() => speaking || preparingVoice ? stopSpeech() : speakReply(sceneInfo.intro)}>{speaking || preparingVoice ? <><Square size={13}/> 読み上げを止める</> : <><Volume2 size={15}/> あいさつを聞く</>}</button></div><button className="avatar-edit-button" aria-label="アバター設定" aria-expanded={avatarSettings} aria-controls="avatar-settings" onClick={() => { stopSpeech(); stopListening(); setListening(false); setAvatarSettings(v => !v); }}><Pencil size={13}/><span>アバター設定</span></button></div>
     <div className="chat-heading"><div className="chat-partner"><Avatar avatar={avatar} className="partner-character"/><div><strong>{avatarName}と英会話</strong><small><span className="online-dot"/>{sceneInfo.role} ・ {mode === 'ai' ? 'AIと自由に会話' : 'ガイド会話'}</small></div></div><div className="chat-tools"><button className="chat-history-toggle" aria-pressed={historyView} onClick={() => setHistoryView(v => !v)}>{historyView ? 'アバターを大きく' : '履歴を広く'}</button><button className={`translation-toggle ${showTranslation ? 'active' : ''}`} onClick={() => setShowTranslation(v => !v)} aria-pressed={showTranslation}>日本語訳</button><button className="icon-button" title="会話をはじめから" aria-label="会話をはじめから" disabled={busy} onClick={() => changeScene(scene)}><RotateCcw size={17}/></button></div></div>
-    <div className="chat-messages" ref={scrollRef} aria-live="polite" role="log" aria-label="会話履歴"><div className="chat-date">今日の小さなチャレンジ</div>{bubble(sceneInfo.intro, sceneInfo.translation, '', 'intro')}{messages.map((m, i) => m.role === 'assistant' ? bubble(m.content, m.translation, m.tip, i) : <div className="user-row" key={i}><div className="bubble">{m.content}</div><span className="user-avatar">YOU</span></div>)}{busy && <div className="typing"><span/><span/><span/><small>返事を考えています</small></div>}</div>
+    <div className="chat-messages" ref={scrollRef} aria-live="polite" role="log" aria-label="会話履歴"><div className="chat-date">今日の小さなチャレンジ</div>{bubble(sceneInfo.intro, sceneInfo.translation, '', 'intro')}{messages.map((m, i) => m.role === 'assistant' ? <div className="assistant-turn" key={i}>{bubble(m.content, m.translation, m.tip, i)}<ConversationFeedback feedback={m.feedback} voice={m.voice} onSpeak={speakReply} busy={busy} onPractice={id=>{stopSpeech();stopListening();setListening(false);setPronunciationLesson(id);}}/></div> : <div className="user-row" key={i}><div className="bubble">{m.content}</div><span className="user-avatar">YOU</span></div>)}{busy && <div className="typing"><span/><span/><span/><small>返事を考えています</small></div>}</div>
     <div className="chat-input-area">{error && <div role="alert" className="chat-error"><p>{error}</p>{canPractice && <button className="text-button" onClick={() => send(draft, true)}>練習会話で続ける <ArrowRight size={14}/></button>}</div>}<div className="suggestions"><span>こんなふうに言ってみよう</span><div>{(suggestions || []).map(s => <button key={s} disabled={busy} onClick={() => send(s)}>{s}<ArrowRight size={13}/></button>)}</div></div><form className="chat-form" onSubmit={e => { e.preventDefault(); send(); }}><button type="button" className={`icon-button mic-button ${listening ? 'listening' : ''}`} disabled={busy} onClick={dictate} aria-label={listening ? '音声入力を停止' : '音声で入力'}>{listening ? <MicOff size={20}/> : <Mic size={20}/>}</button><input ref={inputRef} aria-label="英語のメッセージ" value={draft} onChange={e => setDraft(e.target.value)} placeholder={listening ? '聞いています…' : '英語で話しかけてみよう…'} maxLength={500} disabled={busy}/><button className="send-button" aria-label="メッセージを送信" disabled={busy || !draft.trim()}><Send size={19}/></button></form><p className="input-caption"><Headphones size={12}/> マイクで話すと自動で送信します。もう一度マイクを押すと中止できます。</p></div>
   </section></div>;
 }
